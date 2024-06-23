@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SecurePass - Welcome</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #121212;
+      color: #f0f0f0;
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 100px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background-color: #1e1e1e;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+      border-radius: 15px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 40px;
+      color: #f0f0f0;
+      margin-bottom: 10px;
+    }
+    .tagline {
+      font-size: 24px;
+      color: #b0b0b0;
+      margin-bottom: 20px;
+    }
+    .button {
+      display: inline-block;
+      padding: 14px 28px;
+      margin: 10px;
+      text-decoration: none;
+      color: #121212;
+      background-color: #f0f0f0;
+      border-radius: 25px;
+      font-size: 16px;
+      transition: background-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    .button:hover {
+      background-color: #d0d0d0;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    }
+    p {
+      margin: 0 0 20px;
+      font-size: 18px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>SecurePass</h1>
+    <p class="tagline">Your Secure Password Manager</p>
+    <p>Please sign up or log in to continue.</p>
+    <a href="{{ url_for('signup') }}" class="button">Sign Up</a>
+    <a href="{{ url_for('login') }}" class="button">Log In</a>
+  </div>
+</body>
+</html>
