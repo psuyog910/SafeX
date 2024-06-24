@@ -7,102 +7,165 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
     <style>
+        :root {
+            --primary-bg: #121212;
+            --secondary-bg: #1e1e1e;
+            --card-bg: #2e2e2e;
+            --text-color: #f0f0f0;
+            --accent-color: #4CAF50;
+            --highlight-color: #FFA726;
+            --danger-color: #F44336;
+        }
+
         body {
-            background-color: #121212;
-            color: #f0f0f0;
+            background-color: var(--primary-bg);
+            color: var(--text-color);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 20px;
         }
+
         .container {
             margin-top: 50px;
         }
+
         .card {
-            background-color: #1e1e1e;
+            background-color: var(--secondary-bg);
             border: none;
             border-radius: 15px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
             margin-bottom: 20px;
         }
-        .card-header, .card-body {
-            border-radius: 15px;
-        }
+
         .card-header {
-            background-color: #2e2e2e;
-            color: #f0f0f0;
+            background-color: var(--card-bg);
+            color: var(--text-color);
             border-bottom: none;
             padding: 15px;
+            font-size: 1.2em;
+            font-weight: bold;
         }
+
         .card-body {
             padding: 20px;
         }
+
         h1, h2 {
-            font-size: 24px;
-            color: #f0f0f0;
+            color: var(--accent-color);
             margin-bottom: 20px;
         }
-        button, .btn {
-            border-radius: 25px;
-            transition: background-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
-        }
+
         .btn-primary {
-            background-color: #f0f0f0;
-            color: #121212;
+            background-color: var(--accent-color);
             border: none;
             padding: 10px 20px;
             font-size: 16px;
         }
+
         .btn-primary:hover {
-            background-color: #d0d0d0;
+            background-color: #45a049;
             transform: translateY(-2px);
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
         }
+
         .btn-secondary {
-            background-color: #3e3e3e;
-            color: #f0f0f0;
+            background-color: var(--card-bg);
+            color: var(--text-color);
             border: none;
             padding: 10px 20px;
             font-size: 16px;
         }
+
         .btn-secondary:hover {
-            background-color: #5e5e5e;
+            background-color: #3e3e3e;
             transform: translateY(-2px);
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
         }
+
         .form-control {
-            background-color: #2e2e2e;
-            color: #f0f0f0;
-            border: none;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            border: 1px solid #3a3a3a;
             border-radius: 5px;
             padding: 10px;
         }
-        .result {
-            margin-top: 20px;
-        }
+
         .password-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 10px;
-            background-color: #2e2e2e;
-            padding: 10px;
+            background-color: var(--card-bg);
+            padding: 15px;
             border-radius: 5px;
+            transition: background-color 0.3s ease;
         }
+
+        .password-item:hover {
+            background-color: #3a3a3a;
+        }
+
         .password-actions {
             display: flex;
             gap: 10px;
         }
+
+        .decrypt-btn {
+            background-color: var(--highlight-color);
+            color: var(--primary-bg);
+        }
+
+        .decrypt-btn:hover {
+            background-color: #FF9800;
+        }
+
+        .delete-btn {
+            background-color: var(--danger-color);
+        }
+
+        .delete-btn:hover {
+            background-color: #D32F2F;
+        }
+
+        .safex-name {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+
+        #encrypt-result, #decrypt-result {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: var(--card-bg);
+        }
+
+        .modal-content {
+            background-color: var(--secondary-bg);
+            color: var(--text-color);
+        }
+
+        .modal-header {
+            border-bottom: 1px solid var(--card-bg);
+        }
+
+        .modal-footer {
+            border-top: 1px solid var(--card-bg);
+        }
     </style>
 </head>
 <body>
+    <div class="safex-name">SafeX</div>
     <div class="container">
-        <h1>Welcome, {{ name }}!</h1>
-        <p>You have successfully logged in.</p>
-        <a href="{{ url_for('logout') }}" class="btn btn-secondary">Log Out</a>
+        <h1 class="mb-4">Welcome, {{ name }}!</h1>
+        <a href="{{ url_for('logout') }}" class="btn btn-secondary mb-4">Log Out</a>
 
-        <div class="card mt-4">
+        <div class="card mb-4">
             <div class="card-header">
-                <h2>Password Encryption</h2>
+                <h2 class="mb-0">Password Encryption</h2>
             </div>
             <div class="card-body">
                 <form id="encrypt-form">
@@ -120,13 +183,13 @@
                     </div>
                     <button type="submit" class="btn btn-primary">Encrypt and Save</button>
                 </form>
-                <div id="encrypt-result" class="result"></div>
+                <div id="encrypt-result" class="mt-3"></div>
             </div>
         </div>
 
         <div class="card">
             <div class="card-header">
-                <h2>Saved Passwords</h2>
+                <h2 class="mb-0">Saved Passwords</h2>
             </div>
             <div class="card-body">
                 <div id="password-list">
@@ -134,47 +197,47 @@
                         <div class="password-item" data-id="{{ password.id }}">
                             <span>{{ password.name }}</span>
                             <div class="password-actions">
-                                <button class="btn btn-sm btn-info decrypt-btn" data-id="{{ password.id }}">Decrypt</button>
-                                <button class="btn btn-sm btn-danger delete-btn" data-id="{{ password.id }}">Delete</button>
+                                <button class="btn btn-sm decrypt-btn" data-id="{{ password.id }}">Decrypt</button>
+                                <button class="btn btn-sm delete-btn" data-id="{{ password.id }}">Delete</button>
                             </div>
                         </div>
                     {% endfor %}
                 </div>
-                <div id="decrypt-result" class="result"></div>
+                <div id="decrypt-result" class="mt-3"></div>
             </div>
         </div>
     </div>
 
-<div class="modal fade" id="decryptModal" tabindex="-1" role="dialog" aria-labelledby="decryptModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content" style="background-color: #1c1c1c; color: #f0f0f0;">
-            <div class="modal-header" style="border-bottom: 1px solid #3a3a3a;">
-                <h5 class="modal-title" id="decryptModalLabel" style="color: #f0f0f0;">Decrypt Password</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color: #f0f0f0;">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="decrypt-form">
-                    <input type="hidden" id="decrypt_password_id" name="password_id">
-                    <div class="form-group">
-                        <label for="decrypt_passkey">Passkey:</label>
-                        <input type="password" class="form-control" id="decrypt_passkey" name="passkey" required style="background-color: #2c2c2c; color: #f0f0f0; border: 1px solid #3a3a3a;">
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer" style="border-top: 1px solid #3a3a3a;">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal" style="background-color: #444; border: none;">Close</button>
-                <button type="button" class="btn btn-primary" id="decrypt-submit" style="background-color: #565656; border: none;">Decrypt</button>
+    <div class="modal fade" id="decryptModal" tabindex="-1" role="dialog" aria-labelledby="decryptModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="decryptModalLabel">Decrypt Password</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="decrypt-form">
+                        <input type="hidden" id="decrypt_password_id" name="password_id">
+                        <div class="form-group">
+                            <label for="decrypt_passkey">Passkey:</label>
+                            <input type="password" class="form-control" id="decrypt_passkey" name="passkey" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="decrypt-submit">Decrypt</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
-
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
     <script>
         $(document).ready(function() {
             $('#encrypt-form').on('submit', function(e) {
