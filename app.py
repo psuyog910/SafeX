@@ -43,6 +43,13 @@ def signup():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
+        confirm_password = request.form['confirm_password']
+        if password != confirm_password:
+            flash('Passwords do not match!')
+            return redirect(url_for('signup'))
+        if len(password) < 8 or not any(char.isdigit() for char in password) or not any(char.isalpha() for char in password) or not any(char in '!@#$%^&*()_+' for char in password):
+            flash('Password must be at least 8 characters long, contain a number, a letter, and a special character.')
+            return redirect(url_for('signup'))
         existing_user = User.query.filter_by(username=username).first()
         if existing_user:
             flash('Username already exists!')
@@ -141,7 +148,14 @@ def delete_password():
             return jsonify({"error": "Database error occurred"}), 500
     return jsonify({"error": "Password not found"}), 404
 
+@app.route('/about')
+def about():
+    return render_template('about.html')
+
+@app.route('/close_about')
+def close_about():
+    return render_template('home.html')
+
+
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(debug=True)
