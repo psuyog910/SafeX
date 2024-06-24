@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
     <title>SecurePass - Dashboard</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
@@ -22,11 +22,11 @@
             color: var(--text-color);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
         }
 
         .container {
-            margin-top: 50px;
+            margin-top: 20px;
         }
 
         .card {
@@ -44,42 +44,32 @@
             padding: 15px;
             font-size: 1.2em;
             font-weight: bold;
+            border-radius: 15px 15px 0 0;
         }
 
         .card-body {
-            padding: 20px;
+            padding: 15px;
         }
 
         h1, h2 {
             color: var(--accent-color);
-            margin-bottom: 20px;
+            margin-bottom: 10px;
+            font-size: 1.5em;
         }
 
         .btn-primary {
             background-color: var(--accent-color);
             border: none;
-            padding: 10px 20px;
+            padding: 8px 16px;
             font-size: 16px;
-        }
-
-        .btn-primary:hover {
-            background-color: #45a049;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
         }
 
         .btn-secondary {
             background-color: var(--card-bg);
             color: var(--text-color);
             border: none;
-            padding: 10px 20px;
+            padding: 8px 16px;
             font-size: 16px;
-        }
-
-        .btn-secondary:hover {
-            background-color: #3e3e3e;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
         }
 
         .form-control {
@@ -87,60 +77,28 @@
             color: var(--text-color);
             border: 1px solid #3a3a3a;
             border-radius: 5px;
-            padding: 10px;
+            padding: 8px;
         }
 
         .password-item {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
+            flex-direction: column;
+            margin-bottom: 15px;
             background-color: var(--card-bg);
-            padding: 15px;
+            padding: 10px;
             border-radius: 5px;
             transition: background-color 0.3s ease;
         }
 
-        .password-item:hover {
-            background-color: #3a3a3a;
+        .password-name {
+            font-weight: bold;
+            margin-bottom: 10px;
+            word-break: break-word;
         }
 
         .password-actions {
             display: flex;
             gap: 10px;
-        }
-
-        .decrypt-btn {
-            background-color: var(--highlight-color);
-            color: var(--primary-bg);
-        }
-
-        .decrypt-btn:hover {
-            background-color: #FF9800;
-        }
-
-        .delete-btn {
-            background-color: var(--danger-color);
-        }
-
-        .delete-btn:hover {
-            background-color: #D32F2F;
-        }
-
-        .safex-name {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            font-size: 24px;
-            color: var(--accent-color);
-            font-weight: bold;
-        }
-
-        #encrypt-result, #decrypt-result {
-            margin-top: 20px;
-            padding: 10px;
-            border-radius: 5px;
-            background-color: var(--card-bg);
         }
 
         .modal-content {
@@ -155,17 +113,61 @@
         .modal-footer {
             border-top: 1px solid var(--card-bg);
         }
+
+        /* New styles for SafeX logo */
+        .safex-logo {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            color: var(--accent-color);
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        @media (min-width: 768px) {
+            .password-item {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .password-name {
+                margin-bottom: 0;
+                margin-right: 10px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            h1, h2 {
+                font-size: 1.2em;
+            }
+            .btn {
+                padding: 6px 12px;
+                font-size: 14px;
+            }
+            .form-control {
+                padding: 6px;
+            }
+            .card-body {
+                padding: 10px;
+            }
+            .password-item {
+                padding: 8px;
+            }
+            .safex-logo {
+                font-size: 1.2em;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="safex-name">SafeX</div>
+    <div class="safex-logo">SafeX</div>
     <div class="container">
-        <h1 class="mb-4">Welcome, {{ name }}!</h1>
-        <a href="{{ url_for('logout') }}" class="btn btn-secondary mb-4">Log Out</a>
-
-        <div class="card mb-4">
+        <h1>Welcome, {{ name }}!</h1>
+        <a href="{{ url_for('logout') }}" class="btn btn-secondary mb-2">Log Out</a>
+        <div class="card mb-2">
             <div class="card-header">
-                <h2 class="mb-0">Password Encryption</h2>
+                <h2>Password Encryption</h2>
             </div>
             <div class="card-body">
                 <form id="encrypt-form">
@@ -183,27 +185,27 @@
                     </div>
                     <button type="submit" class="btn btn-primary">Encrypt and Save</button>
                 </form>
-                <div id="encrypt-result" class="mt-3"></div>
+                <div id="encrypt-result" class="mt-2"></div>
             </div>
         </div>
 
         <div class="card">
             <div class="card-header">
-                <h2 class="mb-0">Saved Passwords</h2>
+                <h2>Saved Passwords</h2>
             </div>
             <div class="card-body">
                 <div id="password-list">
                     {% for password in passwords %}
                         <div class="password-item" data-id="{{ password.id }}">
-                            <span>{{ password.name }}</span>
+                            <div class="password-name">{{ password.name }}</div>
                             <div class="password-actions">
-                                <button class="btn btn-sm decrypt-btn" data-id="{{ password.id }}">Decrypt</button>
-                                <button class="btn btn-sm delete-btn" data-id="{{ password.id }}">Delete</button>
+                                <button class="btn btn-info decrypt-btn" data-id="{{ password.id }}">Decrypt</button>
+                                <button class="btn btn-danger delete-btn" data-id="{{ password.id }}">Delete</button>
                             </div>
                         </div>
                     {% endfor %}
                 </div>
-                <div id="decrypt-result" class="mt-3"></div>
+                <div id="decrypt-result" class="mt-2"></div>
             </div>
         </div>
     </div>
@@ -302,7 +304,7 @@
                     passwordList.empty();
                     data.forEach(function(password) {
                         var passwordItem = $('<div class="password-item" data-id="' + password.id + '"></div>');
-                        passwordItem.append('<span>' + password.name + '</span>');
+                        passwordItem.append('<div class="password-name">' + password.name + '</div>');
                         var actions = $('<div class="password-actions"></div>');
                         actions.append('<button class="btn btn-sm btn-info decrypt-btn" data-id="' + password.id + '">Decrypt</button>');
                         actions.append('<button class="btn btn-sm btn-danger delete-btn" data-id="' + password.id + '">Delete</button>');
