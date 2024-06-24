@@ -1,71 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SecurePass - Welcome</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #121212;
-      color: #f0f0f0;
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      padding-top: 100px;
-    }
-    .container {
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 40px 20px;
-      background-color: #1e1e1e;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-      border-radius: 15px;
-      text-align: center;
-    }
-    h1 {
-      font-size: 40px;
-      color: #f0f0f0;
-      margin-bottom: 10px;
-    }
-    .tagline {
-      font-size: 24px;
-      color: #b0b0b0;
-      margin-bottom: 20px;
-    }
-    .button {
-      display: inline-block;
-      padding: 14px 28px;
-      margin: 10px;
-      text-decoration: none;
-      color: #121212;
-      background-color: #f0f0f0;
-      border-radius: 25px;
-      font-size: 16px;
-      transition: background-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    }
-    .button:hover {
-      background-color: #d0d0d0;
-      transform: translateY(-2px);
-      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-    }
-    p {
-      margin: 0 0 20px;
-      font-size: 18px;
-      line-height: 1.5;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeX - Welcome</title>
+    <style>
+        :root {
+            --primary-bg: #121212;
+            --secondary-bg: #1e1e1e;
+            --card-bg: #2e2e2e;
+            --text-color: #f0f0f0;
+            --accent-color: #4CAF50;
+            --highlight-color: #efefef;
+            --danger-color: #F44336;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 90%;
+            margin: 0 auto;
+            padding: 40px;
+            background-color: var(--secondary-bg);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 48px;
+            color: var(--accent-color);
+            margin-bottom: 10px;
+        }
+
+        .tagline {
+            font-size: 24px;
+            color: var(--highlight-color);
+            margin-bottom: 30px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 14px 28px;
+            margin: 10px;
+            text-decoration: none;
+            color: var(--primary-bg);
+            background-color: var(--accent-color);
+            border-radius: 25px;
+            font-size: 16px;
+            transition: background-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .button.secondary {
+            background-color: #FFA726;
+        }
+
+        .button.secondary:hover {
+            background-color: #45a049;
+        }
+
+        p {
+            margin: 20px 0;
+            font-size: 18px;
+            line-height: 1.5;
+        }
+
+        .security-message {
+            font-size: 16px;
+            color: #b0b0b0;
+            margin-top: 30px;
+        }
+
+        .about-link {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 16px;
+            color: var(--text-color);
+            text-decoration: none;
+            background-color: var(--card-bg);
+            padding: 10px 20px;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .about-link:hover {
+            background-color: #4e4e4e;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h1>SecurePass</h1>
-    <p class="tagline">Your Secure Password Manager</p>
-    <p>Please sign up or log in to continue.</p>
-    <a href="{{ url_for('signup') }}" class="button">Sign Up</a>
-    <a href="{{ url_for('login') }}" class="button">Log In</a>
-  </div>
+    <a href="{{ url_for('about') }}" class="about-link">About</a>
+    <div class="container">
+        <h1>SafeX</h1>
+        <p class="tagline">Where Password Security Meets Simplicity!</p>
+        <a href="{{ url_for('signup') }}" class="button">Sign Up</a>
+        <a href="{{ url_for('login') }}" class="button secondary">Log In</a>
+        
+        <p class="security-message">Your security is our priority. Learn more about our encryption methods and commitment to your privacy in our <a href="{{ url_for('about') }}">About</a> section.</p>
+    </div>
 </body>
 </html>
