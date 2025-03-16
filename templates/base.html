@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SafeX - Secure Password Storage</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --secondary-color: #00bcd4;
+            --danger-color: #f44336;
+            --dark-bg: #121212;
+            --card-bg: #1e1e1e;
+            --input-bg: #333;
+            --text-color: #e0e0e0;
+            --border-color: #444;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--dark-bg);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: var(--card-bg);
+            padding: 15px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo i {
+            margin-right: 10px;
+        }
+        
+        h1, h2, h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+        
+        .section {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--secondary-color);
+            font-weight: 500;
+        }
+        
+        input[type="text"], input[type="password"], input[type="email"] {
+            width: 100%;
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background-color: var(--input-bg);
+            color: white;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.25);
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 28px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 14px;
+            color: white;
+            text-decoration: none;
+            text-align: center;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn i {
+            margin-right: 8px;
+        }
+        
+        .btn-green {
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+        }
+        
+        .btn-green:hover {
+            background: linear-gradient(135deg, #43A047, #2E7D32);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(46, 125, 50, 0.4);
+        }
+        
+        .btn-blue {
+            background: linear-gradient(135deg, #00bcd4, #0097A7);
+        }
+        
+        .btn-blue:hover {
+            background: linear-gradient(135deg, #00ACC1, #0097A7);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 151, 167, 0.4);
+        }
+        
+        .btn-red {
+            background: linear-gradient(135deg, #f44336, #C62828);
+        }
+        
+        .btn-red:hover {
+            background: linear-gradient(135deg, #E53935, #C62828);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(198, 40, 40, 0.4);
+        }
+        
+        .btn-full {
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        .section-header i {
+            font-size: 28px;
+            color: var(--primary-color);
+            margin-right: 15px;
+        }
+        
+        .section-header h2 {
+            margin: 0;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .section-intro {
+            color: #aaa;
+            margin-bottom: 25px;
+            font-size: 16px;
+            position: relative;
+            padding-bottom: 15px;
+        }
+        
+        .flash-message {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .flash-message i {
+            margin-right: 10px;
+            font-size: 20px;
+        }
+        
+        .success {
+            background-color: rgba(76, 175, 80, 0.2);
+            border-left: 4px solid var(--primary-color);
+            color: #4CAF50;
+        }
+        
+        .error {
+            background-color: rgba(244, 67, 54, 0.2);
+            border-left: 4px solid var(--danger-color);
+            color: #f44336;
+        }
+        
+        .auth-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 60vh;
+        }
+        
+        .auth-form {
+            width: 100%;
+            max-width: 500px;
+        }
+        
+        .auth-links {
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .auth-links a {
+            color: var(--secondary-color);
+            text-decoration: none;
+        }
+        
+        .auth-links a:hover {
+            text-decoration: underline;
+        }
+        
+        .hero-section {
+            text-align: center;
+            padding: 80px 20px;
+            margin: 40px auto;
+            background: linear-gradient(145deg, rgba(40, 40, 40, 0.8), rgba(25, 25, 25, 0.9));
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero-icon i {
+            font-size: 60px;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+        
+        .app-title {
+            font-size: 60px;
+            margin-bottom: 10px;
+            color: transparent;
+            background: linear-gradient(135deg, #4CAF50, #8BC34A);
+            -webkit-background-clip: text;
+            background-clip: text;
+            text-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        
+        .tagline {
+            font-size: 20px;
+            color: #bbb;
+            margin-bottom: 50px;
+        }
+        
+        .cta-buttons {
+            margin: 50px 0 30px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        
+        .home-footer {
+            margin-top: 30px;
+        }
+        
+        .home-footer a {
+            color: var(--secondary-color);
+            text-decoration: none;
+        }
+        
+        .home-footer a:hover {
+            text-decoration: underline;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 50px;
+            color: #777;
+            font-size: 14px;
+        }
+        
+        .password-list {
+            margin-top: 30px;
+        }
+        
+        .password-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        
+        .password-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .password-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .password-name {
+            font-weight: 500;
+            margin-bottom: 10px;
+            color: var(--secondary-color);
+        }
+        
+        .password-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .btn-sm {
+            padding: 8px 15px;
+            font-size: 12px;
+        }
+        
+        .no-passwords {
+            text-align: center;
+            color: #777;
+            padding: 30px;
+        }
+        
+        .result-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .password-value {
+            display: flex;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        
+        .password-value p {
+            margin: 0;
+            flex-grow: 1;
+        }
+        
+        .copy-btn {
+            background: none;
+            border: none;
+            color: var(--secondary-color);
+            cursor: pointer;
+            font-size: 18px;
+            padding: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .copy-btn:hover {
+            color: var(--primary-color);
+            transform: scale(1.1);
+        }
+        
+        .button-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        <style>
+            /* Add these responsive styles */
+            @media screen and (max-width: 768px) {
+                .container {
+                    padding: 15px;
+                }
+            
+                .header-content {
+                    padding: 0 15px;
+                }
+            
+                .logo {
+                    font-size: 20px;
+                }
+            
+                .section {
+                    padding: 20px;
+                }
+            
+                .hero-section {
+                    padding: 30px 15px;
+                }
+            
+                .app-title {
+                    font-size: 40px;
+                }
+            
+                .tagline {
+                    font-size: 18px;
+                }
+            
+                .cta-buttons {
+                    flex-direction: column;
+                    gap: 15px;
+                }
+            
+                .btn {
+                    width: 100%;
+                    margin: 0;
+                }
+            
+                .form-group {
+                    margin-bottom: 15px;
+                }
+            
+                input[type="text"], 
+                input[type="password"], 
+                input[type="email"] {
+                    padding: 10px;
+                }
+            
+                .password-grid {
+                    grid-template-columns: 1fr;
+                }
+            
+                .action-buttons {
+                    flex-direction: column;
+                    gap: 10px;
+                }
+            
+                .action-buttons .btn {
+                    width: 100%;
+                }
+            
+                .flash-message {
+                    padding: 12px;
+                    margin-bottom: 15px;
+                }
+            }
+        
+            /* Additional tablet styles */
+            @media screen and (min-width: 769px) and (max-width: 1024px) {
+                .container {
+                    max-width: 90%;
+                }
+            
+                .password-grid {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+            }
+        
+            /* Ensure buttons have proper spacing on mobile */
+            .cta-buttons {
+                display: flex;
+                gap: 20px;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+        
+            /* Improve form layout on all screens */
+            .form-group {
+                max-width: 100%;
+            }
+        
+            /* Ensure proper text wrapping */
+            .section-intro, 
+            .tagline, 
+            .flash-message {
+                word-wrap: break-word;
+            }
+        </style>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">
+                        <i class="fas {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>

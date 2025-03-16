@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="section">
+    <div class="section-header">
+        <i class="fas fa-unlock-alt"></i>
+        <h2>Decrypted Password</h2>
+    </div>
+
+    <div class="result-container">
+        <h3>{{ password.name }}</h3>
+        <div class="password-value">
+            <p id="password-text">{{ decrypted }}</p>
+            <button onclick="copyToClipboard()" class="copy-btn">
+                <i class="fas fa-copy"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="button-container">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-blue">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<script>
+function copyToClipboard() {
+    const passwordText = document.getElementById('password-text').innerText;
+    
+    // Try the modern clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(passwordText).then(() => {
+            showCopyMessage('Password copied!');
+        }).catch(() => {
+            // Fallback for older devices
+            fallbackCopyToClipboard(passwordText);
+        });
+    } else {
+        // Fallback for older devices
+        fallbackCopyToClipboard(passwordText);
+    }
+}
+
+function fallbackCopyToClipboard(text) {
+    // Create temporary input element
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    
+    // Handle iOS devices
+    if (navigator.userAgent.match(/ipad|ipod|iphone/i)) {
+        const range = document.createRange();
+        range.selectNodeContents(textArea);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        textArea.setSelectionRange(0, 999999);
+    } else {
+        textArea.select();
+    }
+
+    try {
+        document.execCommand('copy');
+        showCopyMessage('Password copied!');
+    } catch (err) {
+        showCopyMessage('Failed to copy. Please copy manually.');
+    }
+
+    document.body.removeChild(textArea);
+}
+
+function showCopyMessage(message) {
+    const flash = document.createElement('div');
+    flash.className = 'flash-message success';
+    flash.innerHTML = `<i class="fas fa-check-circle"></i>${message}`;
+    document.querySelector('.section').insertBefore(flash, document.querySelector('.button-container'));
+    
+    setTimeout(() => {
+        flash.remove();
+    }, 3000);
+}
+</script>
+{% endblock %}

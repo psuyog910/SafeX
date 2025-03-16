@@ -1,134 +1,35 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeX - Sign Up</title>
-    <style>
-        :root {
-            --primary-bg: #121212;
-            --secondary-bg: #1e1e1e;
-            --card-bg: #2e2e2e;
-            --text-color: #f0f0f0;
-            --accent-color: #4CAF50;
-            --highlight-color: #FFA726;
-            --danger-color: #F44336;
-            --input-bg: #3e3e3e;
-        }
-
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background-color: var(--primary-bg);
-            color: var(--text-color);
-            margin: 0; 
-            height: 100vh; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-        }
-
-        .container {
-            max-width: 400px;
-            width: 90%;
-            margin: 0 auto;
-            padding: 40px;
-            background-color: var(--secondary-bg);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-            border-radius: 15px;
-            text-align: center;
-        }
-
-        h1 { 
-            font-size: 48px; 
-            color: var(--accent-color);
-            margin-bottom: 10px;
-        }
-
-        h2 {
-            color: var(--highlight-color);
-            margin-bottom: 20px;
-        }
-
-        form { 
-            text-align: left; 
-        }
-
-        input { 
-            display: block; 
-            width: 100%; 
-            margin: 10px 0; 
-            padding: 12px; 
-            border: none; 
-            border-radius: 5px; 
-            background-color: var(--input-bg);
-            color: var(--text-color);
-            font-size: 16px;
-        }
-
-        button { 
-            display: block; 
-            width: 100%; 
-            margin: 20px 0; 
-            padding: 12px; 
-            background-color: var(--accent-color);
-            color: var(--primary-bg);
-            border: none; 
-            border-radius: 25px; 
-            font-size: 16px; 
-            transition: background-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease; 
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            cursor: pointer;
-        }
-
-        button:hover { 
-            background-color: #45a049;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-        }
-
-        p {
-            font-size: 14px;
-            margin-top: 20px;
-        }
-
-        p a {
-            color: var(--highlight-color);
-            text-decoration: none;
-        }
-
-        p a:hover {
-            text-decoration: underline;
-        }
-
-        ul {
-            padding-left: 20px;
-            text-align: left;
-            color: var(--danger-color);
-            font-size: 14px;
-            margin-top: 20px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>SafeX</h1>
-        <h2>Sign Up</h2>
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                <ul>
-                    {% for message in messages %}
-                        <li>{{ message }}</li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
-        {% endwith %}
+{% extends "base.html" %}
+{% block content %}
+<div class="auth-container">
+    <div class="section auth-form">
+        <div class="section-header">
+            <i class="fas fa-user-plus"></i>
+            <h2>Create an Account</h2>
+        </div>
+        <p class="section-intro">Sign up to start managing your passwords securely.</p>
+        
         <form method="POST">
-            <input type="email" name="username" placeholder="Email" required>
-            <input type="password" name="password" placeholder="Password" required>
-            <input type="password" name="confirm_password" placeholder="Confirm Password" required>
-            <button type="submit">Sign Up</button>
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" placeholder="Choose a username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" placeholder="Create a strong password" required>
+                <small class="form-text">Password must be at least 8 characters long, contain a number, a letter, and a special character.</small>
+            </div>
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password:</label>
+                <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm your password" required>
+            </div>
+            <button type="submit" class="btn btn-green btn-full">
+                <i class="fas fa-user-plus"></i> Sign Up
+            </button>
         </form>
-        <p>Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+        
+        <div class="auth-links">
+            <p>Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
+        </div>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

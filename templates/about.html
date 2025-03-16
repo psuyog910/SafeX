@@ -1,67 +1,73 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeX - About</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #121212;
-            color: #f0f0f0;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #1e1e1e;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-            border-radius: 15px;
-            text-align: left;
-            position: relative; /* Added */
-        }
-        .close-button {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            font-size: 24px;
-            cursor: pointer;
-        }
-        h1 {
-            font-size: 36px;
-            color: #45a049;
-            margin-bottom: 20px;
-        }
-        p {
-            font-size: 16px;
-            line-height: 1.5;
-            margin-bottom: 20px;
-        }
-        a {
-            color: #58a6ff;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <span class="close-button" onclick="closeAbout()">×</span> <!-- Close button -->
-        <h1>Welcome to SafeX</h1>
-        <p>SafeX is where your password security meets simplicity! We ensure that your passwords are securely encrypted and can only be decrypted with your personal passkey, which we do not store. This means that your data remains safe and accessible only by you.</p>
-        
-        <p>Your username and password while logging in are secured using the SHA256 encryption algorithm in the backend, so you can rest assured about the security of your credentials.</p>
-        <p>For any queries or help, contact: <a href="mailto:projectqrious@gmail.com">projectqrious@gmail.com</a></p>
+{% extends "base.html" %}
+{% block content %}
+<div class="section">
+    <div class="section-header">
+        <i class="fas fa-info-circle"></i>
+        <h2>About Password Manager</h2>
     </div>
+    <p class="section-intro">Password Manager is a secure application designed to help you store and manage your passwords safely.</p>
+    
+    <div class="about-section">
+        <h3><i class="fas fa-cogs"></i> How it works</h3>
+        <p>Password Manager uses strong encryption to protect your passwords. We do not store your passkey, we just store your encrypted passwords.</p>
+        <ul>
+            <li>Your passwords are encrypted with your personal passkey</li>
+            <li>Only you can access them with your account credentials</li>
+        </ul>
+    </div>
+    
+    <div class="about-section">
+        <h3><i class="fas fa-shield-alt"></i> Security Features</h3>
+        <ul>
+            <li>Strong password hashing</li>
+            <li>Symmetric encryption for stored passwords</li>
+            <li>Protection against unauthorized access</li>
+        </ul>
+    </div>
+    
+    <div class="about-section">
+        <h3><i class="fas fa-lightbulb"></i> Tips</h3>
+        <ul>
+            <li>Use a strong, unique passkey for each password</li>
+            <li>Remember your passkeys - they cannot be recovered if lost</li>
+        </ul>
+    </div>
+    
+    <div class="button-container">
+        <a href="{{ url_for('home') }}" class="btn btn-blue">
+            <i class="fas fa-arrow-left"></i> Back to Home
+        </a>
+    </div>
+</div>
 
-    <script>
-        function closeAbout() {
-            window.location.href = '/'; // Redirect to the home page
-        }
-    </script>
-</body>
-</html>
+<style>
+    .about-section {
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .about-section:last-child {
+        border-bottom: none;
+    }
+    
+    .about-section h3 {
+        display: flex;
+        align-items: center;
+        color: var(--secondary-color);
+        margin-bottom: 15px;
+    }
+    
+    .about-section h3 i {
+        margin-right: 10px;
+    }
+    
+    .about-section ul {
+        padding-left: 20px;
+    }
+    
+    .about-section li {
+        margin-bottom: 8px;
+    }
+</style>
+{% endblock %}
