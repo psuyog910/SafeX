@@ -8,12 +8,14 @@ from sqlalchemy.exc import SQLAlchemyError
 import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your_secret_key'  # Replace with a real secret key
+app.config['SECRET_KEY'] = 'your_secret_key'  # Make sure this is a strong secret key
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+login_manager.login_message = 'Please log in to access this page.'
+login_manager.login_message_category = 'error'
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -29,7 +31,7 @@ class Password(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 def generate_key(passphrase):
     return base64.urlsafe_b64encode(passphrase.ljust(32)[:32].encode())
@@ -38,31 +40,39 @@ def generate_key(passphrase):
 def home():
     return render_template('home.html')
 
+@app.route('/about')
+def about():
+    return render_template('about.html')
+
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
         confirm_password = request.form['confirm_password']
+        
         if password != confirm_password:
-            flash('Passwords do not match!')
+            flash('Passwords do not match!', 'error')
             return redirect(url_for('signup'))
+            
         if len(password) < 8 or not any(char.isdigit() for char in password) or not any(char.isalpha() for char in password) or not any(char in '!@#$%^&*()_+' for char in password):
-            flash('Password must be at least 8 characters long, contain a number, a letter, and a special character.')
+            flash('Password must be at least 8 characters long, contain a number, a letter, and a special character.', 'error')
             return redirect(url_for('signup'))
+            
         existing_user = User.query.filter_by(username=username).first()
         if existing_user:
-            flash('Username already exists!')
+            flash('Username already exists!', 'error')
             return redirect(url_for('signup'))
+            
         new_user = User(username=username, password=generate_password_hash(password, method='sha256'))
         try:
             db.session.add(new_user)
             db.session.commit()
-            flash('Account created successfully! Please log in.')
+            flash('Account created successfully! Please log in.', 'success')
             return redirect(url_for('login'))
         except SQLAlchemyError as e:
             db.session.rollback()
-            flash('An error occurred. Please try again.')
+            flash('An error occurred. Please try again.', 'error')
             return redirect(url_for('signup'))
     return render_template('signup.html')
 
@@ -72,17 +82,27 @@ def login():
         username = request.form['username']
         password = request.form['password']
         user = User.query.filter_by(username=username).first()
+        
         if user and check_password_hash(user.password, password):
-            login_user(user)
+            login_user(user, remember=True)  # Added remember=True
+            flash('Logged in successfully!', 'success')
             return redirect(url_for('dashboard'))
-        flash('Invalid username or password')
+        else:
+            if not user:
+                flash('Username not found', 'error')
+            else:
+                flash('Incorrect password', 'error')
     return render_template('login.html')
 
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    passwords = Password.query.filter_by(user_id=current_user.id).order_by(Password.name).all()
-    return render_template('dashboard.html', name=current_user.username, passwords=passwords)
+    try:
+        passwords = Password.query.filter_by(user_id=current_user.id).order_by(Password.name).all()
+        return render_template('dashboard.html', name=current_user.username, passwords=passwords)
+    except Exception as e:
+        flash('Error accessing dashboard', 'error')
+        return redirect(url_for('home'))
 
 @app.route('/logout')
 @login_required
@@ -93,9 +113,10 @@ def logout():
 @app.route('/encrypt', methods=['POST'])
 @login_required
 def encrypt():
+    password_name = request.form['password_name']
     password = request.form['password']
     passkey = request.form['passkey']
-    password_name = request.form['password_name']
+    
     key = generate_key(passkey)
     fernet = Fernet(key)
     encrypted_password = fernet.encrypt(password.encode()).decode()
@@ -104,58 +125,80 @@ def encrypt():
     try:
         db.session.add(new_password)
         db.session.commit()
-        return jsonify({"message": "Password encrypted and saved successfully", "id": new_password.id})
+        flash('Password encrypted and saved successfully!', 'success')
+        return redirect(url_for('dashboard'))
     except SQLAlchemyError as e:
         db.session.rollback()
-        return jsonify({"error": "Database error occurred"}), 500
+        flash('An error occurred while saving the password.', 'error')
+        return redirect(url_for('dashboard'))
 
-@app.route('/decrypt', methods=['POST'])
+@app.route('/decrypt_password/<int:id>', methods=['GET', 'POST'])
 @login_required
-def decrypt():
-    password_id = request.form['password_id']
-    passkey = request.form['passkey']
-    
-    password_entry = Password.query.filter_by(id=password_id, user_id=current_user.id).first()
-    if not password_entry:
-        return jsonify({"error": "Password not found"}), 404
-    
-    key = generate_key(passkey)
-    fernet = Fernet(key)
-    try:
-        decrypted_password = fernet.decrypt(password_entry.encrypted_password.encode()).decode()
-        return jsonify({"decrypted_password": decrypted_password})
-    except Exception as e:
-        return jsonify({"error": "Invalid passkey or corrupted data"}), 400
-
-@app.route('/get_passwords')
-@login_required
-def get_passwords():
-    passwords = Password.query.filter_by(user_id=current_user.id).order_by(Password.name).all()
-    return jsonify([{"id": p.id, "name": p.name} for p in passwords])
-
-@app.route('/delete_password', methods=['POST'])
-@login_required
-def delete_password():
-    password_id = request.form['password_id']
-    password = Password.query.filter_by(id=password_id, user_id=current_user.id).first()
-    if password:
+def decrypt_password_by_id(id):
+    password = Password.query.get_or_404(id)
+    if password.user_id != current_user.id:
+        flash('You do not have permission to view this password', 'error')
+        return redirect(url_for('dashboard'))
+        
+    if request.method == 'POST':
         try:
-            db.session.delete(password)
-            db.session.commit()
-            return jsonify({"message": "Password deleted successfully"})
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            return jsonify({"error": "Database error occurred"}), 500
-    return jsonify({"error": "Password not found"}), 404
+            passkey = request.form['passkey']
+            key = generate_key(passkey)
+            fernet = Fernet(key)
+            decrypted_password = fernet.decrypt(password.encrypted_password.encode()).decode()
+            return render_template('decrypt_result.html', password=password, decrypted=decrypted_password)
+        except Exception as e:
+            flash('Invalid passkey or corrupted data', 'error')
+            return redirect(url_for('dashboard'))
+    return render_template('decrypt_password.html', password=password)
 
-@app.route('/about')
-def about():
-    return render_template('about.html')
+@app.route('/update_password/<int:id>', methods=['GET', 'POST'])
+@login_required
+def update_password(id):
+    password = Password.query.get_or_404(id)
+    if password.user_id != current_user.id:
+        flash('You do not have permission to update this password', 'error')
+        return redirect(url_for('dashboard'))
+        
+    if request.method == 'POST':
+        password.name = request.form['password_name']
+        new_password = request.form['password']
+        passkey = request.form['passkey']
+        
+        key = generate_key(passkey)
+        fernet = Fernet(key)
+        encrypted_password = fernet.encrypt(new_password.encode()).decode()
+        
+        password.encrypted_password = encrypted_password
+        db.session.commit()
+        flash('Password updated successfully!', 'success')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('update_password.html', password=password)
 
-@app.route('/close_about')
-def close_about():
-    return render_template('home.html')
+@app.route('/delete_password/<int:id>')
+@login_required
+def delete_password_by_id(id):
+    password = Password.query.get_or_404(id)
+    if password.user_id != current_user.id:
+        flash('You do not have permission to delete this password', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        db.session.delete(password)
+        db.session.commit()
+        flash('Password deleted successfully!', 'success')
+    except SQLAlchemyError:
+        db.session.rollback()
+        flash('An error occurred while deleting the password', 'error')
+    
+    return redirect(url_for('dashboard'))
 
+def init_db():
+    with app.app_context():
+        db.create_all()
+        print("Database tables created successfully!")
 
 if __name__ == '__main__':
+    init_db()
     app.run(debug=True)
