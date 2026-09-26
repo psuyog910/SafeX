@@ -295,7 +295,9 @@ def security_headers(resp):
     if current_user.is_authenticated:
         resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private, max-age=0'
         resp.headers['Pragma'] = 'no-cache'
-        resp.headers['Vary'] = 'Cookie'
+        # add, never assign: the server may already send Vary: Accept-Encoding
+        # and overwriting it would break compression negotiation
+        resp.headers.add('Vary', 'Cookie')
     return resp
 
 
