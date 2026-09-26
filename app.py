@@ -4,12 +4,18 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from cryptography.fernet import Fernet
 import base64
+import hashlib
+import secrets
 from sqlalchemy.exc import SQLAlchemyError
 import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your_secret_key'  # Make sure this is a strong secret key
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-only-change-me')
+db_url = os.environ.get('DATABASE_URL', 'sqlite:///users.db')
+# Some providers hand out postgres:// URLs; SQLAlchemy 2.x wants postgresql://
+if db_url.startswith('postgres://'):
+    db_url = db_url.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -27,14 +33,18 @@ class Password(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     encrypted_password = db.Column(db.String(500), nullable=False)
+    salt = db.Column(db.String(64), nullable=False, default='')
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
 
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
 
-def generate_key(passphrase):
-    return base64.urlsafe_b64encode(passphrase.ljust(32)[:32].encode())
+KDF_ITERATIONS = 200_000
+
+def _derive_key(passphrase, salt):
+    raw = hashlib.pbkdf2_hmac('sha256', passphrase.encode(), salt, KDF_ITERATIONS, dklen=32)
+    return base64.urlsafe_b64encode(raw)
 
 @app.route('/')
 def home():
@@ -64,7 +74,7 @@ def signup():
             flash('Username already exists!', 'error')
             return redirect(url_for('signup'))
             
-        new_user = User(username=username, password=generate_password_hash(password, method='sha256'))
+        new_user = User(username=username, password=generate_password_hash(password))
         try:
             db.session.add(new_user)
             db.session.commit()
@@ -117,11 +127,11 @@ def encrypt():
     password = request.form['password']
     passkey = request.form['passkey']
     
-    key = generate_key(passkey)
-    fernet = Fernet(key)
+    salt = secrets.token_bytes(32)
+    fernet = Fernet(_derive_key(passkey, salt))
     encrypted_password = fernet.encrypt(password.encode()).decode()
-    
-    new_password = Password(name=password_name, encrypted_password=encrypted_password, user_id=current_user.id)
+
+    new_password = Password(name=password_name, encrypted_password=encrypted_password, salt=salt.hex(), user_id=current_user.id)
     try:
         db.session.add(new_password)
         db.session.commit()
@@ -143,8 +153,7 @@ def decrypt_password_by_id(id):
     if request.method == 'POST':
         try:
             passkey = request.form['passkey']
-            key = generate_key(passkey)
-            fernet = Fernet(key)
+            fernet = Fernet(_derive_key(passkey, bytes.fromhex(password.salt)))
             decrypted_password = fernet.decrypt(password.encrypted_password.encode()).decode()
             return render_template('decrypt_result.html', password=password, decrypted=decrypted_password)
         except Exception as e:
@@ -165,18 +174,19 @@ def update_password(id):
         new_password = request.form['password']
         passkey = request.form['passkey']
         
-        key = generate_key(passkey)
-        fernet = Fernet(key)
+        salt = secrets.token_bytes(32)
+        fernet = Fernet(_derive_key(passkey, salt))
         encrypted_password = fernet.encrypt(new_password.encode()).decode()
-        
+
         password.encrypted_password = encrypted_password
+        password.salt = salt.hex()
         db.session.commit()
         flash('Password updated successfully!', 'success')
         return redirect(url_for('dashboard'))
     
     return render_template('update_password.html', password=password)
 
-@app.route('/delete_password/<int:id>')
+@app.route('/delete_password/<int:id>', methods=['POST'])
 @login_required
 def delete_password_by_id(id):
     password = Password.query.get_or_404(id)
@@ -199,6 +209,9 @@ def init_db():
         db.create_all()
         print("Database tables created successfully!")
 
+# Create tables at import time too: production servers (gunicorn) never run __main__
+with app.app_context():
+    db.create_all()
+
 if __name__ == '__main__':
-    init_db()
-    app.run(debug=True)
+    app.run(debug=False)
