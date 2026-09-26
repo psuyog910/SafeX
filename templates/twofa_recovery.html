@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Save your recovery codes - SafeX{% endblock %}
+{% block content %}
+<div class="narrow">
+  <div class="card">
+    <div class="card-head">
+      <span class="card-icon"><svg width="21" height="21"><use href="#i-key"/></svg></span>
+      <div>
+        <h2>Save your recovery codes</h2>
+        <p class="sub">Each one works once, if you ever lose your authenticator.</p>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <div class="warn">
+        <svg width="19" height="19"><use href="#i-alert"/></svg>
+        <span>This is the only time they are shown. Screenshot or print them now &mdash; if you lose both your phone and these codes, the account cannot be recovered.</span>
+      </div>
+      <div class="codes">
+        {% for c in codes %}<code>{{ c }}</code>{% endfor %}
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-ghost" style="flex:1" id="print-btn">
+          <svg width="18" height="18"><use href="#i-download"/></svg> Print / save as PDF
+        </button>
+        <a href="{{ url_for('security') }}" class="btn btn-primary">
+          <svg width="18" height="18"><use href="#i-check"/></svg> I have saved them
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script nonce="{{ nonce }}">
+document.getElementById('print-btn').addEventListener('click', function(){ window.print(); });
+</script>
+
+<style nonce="{{ nonce }}">
+.warn{display:flex;gap:11px;align-items:flex-start;padding:13px 16px;border-radius:var(--r);
+  background:var(--danger-soft);border:1px solid rgba(248,113,113,.3);color:#fca5a5;font-size:14px;
+  margin-bottom:20px}
+.warn svg{margin-top:2px;flex:none}
+.codes{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:6px}
+.codes code{font-family:var(--mono);font-size:14px;letter-spacing:.04em;padding:11px 13px;
+  background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-sm);color:#6ee7b7;text-align:center}
+@media (max-width:480px){.codes{grid-template-columns:1fr}}
+@media print{body{background:#fff;color:#000}.topbar,.foot,.btn-row,.warn{display:none}
+  .card{border:0;box-shadow:none}.codes code{color:#000;border:1px solid #999}}
+</style>
+{% endblock %}

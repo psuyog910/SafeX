@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Set up two-factor - SafeX{% endblock %}
+{% block content %}
+<div class="narrow">
+  <div class="card">
+    <div class="card-head">
+      <span class="card-icon cyan"><svg width="21" height="21"><use href="#i-shield"/></svg></span>
+      <div>
+        <h2>Scan this key</h2>
+        <p class="sub">Add it to Google Authenticator, Authy or 1Password.</p>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <p class="hint" style="margin:0 0 10px">Setup key</p>
+      <div class="secret">
+        <code id="password-text" style="font-size:14px;letter-spacing:.06em">{{ secret }}</code>
+        <button type="button" class="copy-btn" id="copy-btn" aria-label="Copy setup key" title="Copy">
+          <svg width="18" height="18"><use href="#i-copy"/></svg>
+        </button>
+      </div>
+      <details class="setup" open>
+        <summary>Add it manually</summary>
+        <p class="hint">Paste this into your authenticator app, or scan the QR code from the service you are enrolling.</p>
+        <code class="setupkey">{{ uri }}</code>
+      </details>
+
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="stage" value="confirm">
+        <div class="field">
+          <label for="code">Enter the code it shows</label>
+          <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code"
+                 placeholder="000000" maxlength="8" required autofocus>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">
+          <svg width="18" height="18"><use href="#i-check"/></svg> Confirm and turn on
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script nonce="{{ nonce }}">
+(function(){
+  var btn=document.getElementById('copy-btn'), t=document.getElementById('password-text');
+  if(!btn||!t) return;
+  function done(){ btn.classList.add('done'); btn.innerHTML='<svg width="18" height="18"><use href="#i-check"/></svg>';
+    setTimeout(function(){btn.classList.remove('done');btn.innerHTML='<svg width="18" height="18"><use href="#i-copy"/></svg>';},1800); }
+  btn.addEventListener('click',function(){
+    var v=t.textContent.trim();
+    if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(v).then(done,function(){fb(v,done);});}
+    else fb(v,done);
+  });
+  function fb(v,cb){var ta=document.createElement('textarea');ta.value=v;ta.setAttribute('readonly','');
+    ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');cb();}catch(e){}document.body.removeChild(ta);}
+})();
+</script>
+
+<style nonce="{{ nonce }}">
+.setup{margin-top:20px;border-top:1px solid var(--line);padding-top:16px}
+.setup summary{cursor:pointer;font-size:14px;font-weight:600;color:var(--text-dim);list-style:none}
+.setup summary::-webkit-details-marker{display:none}
+.setup summary:hover{color:var(--accent)}
+.setupkey{display:block;margin-top:12px;padding:12px 14px;font-family:var(--mono);font-size:12.5px;
+  line-height:1.6;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r);
+  color:var(--cyan);word-break:break-all}
+</style>
+{% endblock %}

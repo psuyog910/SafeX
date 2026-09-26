@@ -66,13 +66,72 @@ def utcnow():
     return datetime.utcnow()
 
 
+def audit(action, detail=None, user=None):
+    """Record a security-relevant event. Never raises: logging must not be able
+    to break the request it is describing."""
+    try:
+        who = user
+        if who is None and getattr(current_user, 'is_authenticated', False):
+            who = current_user
+        db.session.add(AuditEvent(
+            user_id=getattr(who, 'id', None),
+            username=getattr(who, 'username', None) or (request.form.get('username') or None),
+            action=action,
+            detail=(detail or '')[:300] or None,
+            ip=(request.headers.get('X-Forwarded-For', '').split(',')[0].strip()
+                or request.remote_addr or '')[:60] or None,
+            created_at=utcnow(),
+        ))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+def _server_key(salt):
+    """Key for material that belongs to the server, not the user. Derived from
+    SECRET_KEY so it is stable across deploys but never leaves the process."""
+    return _derive_key(app.config['SECRET_KEY'], salt, 100_000)
+
+
+def _encrypt_with_server(plaintext):
+    salt = secrets.token_bytes(32)
+    token = Fernet(_server_key(salt)).encrypt(plaintext.encode()).decode()
+    return token, salt.hex()
+
+
+def _decrypt_with_server(token, salt_hex):
+    return Fernet(_server_key(bytes.fromhex(salt_hex))).decrypt(token.encode()).decode()
+
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
     session_version = db.Column(db.Integer, nullable=False, default=0)
+    # Second factor for signing in to SafeX itself. The seed is sealed with a
+    # key derived from the app SECRET_KEY, not the account password, so it is
+    # unaffected by credential changes and never recoverable.
+    twofa_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    twofa_secret = db.Column(db.String(500))
+    twofa_salt = db.Column(db.String(64))
+    twofa_kdf_iterations = db.Column(db.Integer, nullable=False, default=200_000)
+    recovery_codes = db.Column(db.Text)
     passwords = db.relationship('Password', backref='user', lazy=True, cascade="all, delete-orphan")
     totps = db.relationship('Totp', backref='user', lazy=True, cascade="all, delete-orphan")
+    events = db.relationship('AuditEvent', backref='user', lazy=True, cascade="all, delete-orphan")
+
+
+class AuditEvent(db.Model):
+    """Append-only record of security-relevant activity, so a compromise can be
+    detected and attributed after the fact."""
+    __tablename__ = 'audit_event'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=True)
+    username = db.Column(db.String(100))
+    action = db.Column(db.String(60), nullable=False)
+    detail = db.Column(db.String(300))
+    ip = db.Column(db.String(60))
+    created_at = db.Column(db.DateTime, nullable=False)
 
 
 class Password(db.Model):
@@ -145,9 +204,13 @@ def _ensure_columns():
         },
         'totp': {
             'kdf_iterations': sa.Integer(),
-        },
-        'user': {
+        },        'user': {
             'session_version': sa.Integer(),
+            'twofa_enabled': sa.Boolean(),
+            'twofa_secret': sa.String(500),
+            'twofa_salt': sa.String(64),
+            'twofa_kdf_iterations': sa.Integer(),
+            'recovery_codes': sa.Text(),
         },
     }
     with db.engine.connect() as conn:
@@ -282,6 +345,7 @@ def signup():
         try:
             db.session.add(new_user)
             db.session.commit()
+            audit('signup', user=new_user)
             flash('Account created. Sign in to open your vault.', 'success')
             return redirect(url_for('login'))
         except SQLAlchemyError:
@@ -303,20 +367,154 @@ def login():
         stored = user.password if user else _DUMMY_HASH
         password_ok = check_password_hash(stored, password)
         if user and password_ok:
+            if user.twofa_enabled:
+                # Password is correct but the second factor is still required.
+                session.clear()
+                session['pending_2fa'] = user.id
+                session['sv'] = user.session_version or 0
+                session.permanent = False
+                return redirect(url_for('twofa_challenge'))
             session.clear()
             session['sv'] = user.session_version or 0
             login_user(user, remember=True)
+            audit('login.success', user=user)
             flash('Signed in.', 'success')
             return redirect(url_for('dashboard'))
         # identical message for unknown user and wrong password: do not leak
         # which usernames exist
+        audit('login.failure', detail='username=%s' % (username[:60] or '?'))
         flash('Incorrect username or password.', 'error')
     return render_template('login.html')
+
+
+@app.route('/twofa', methods=['GET', 'POST'])
+@limiter.limit('10 per minute')
+def twofa_challenge():
+    user_id = session.get('pending_2fa')
+    if not user_id:
+        return redirect(url_for('login'))
+    user = db.session.get(User, user_id)
+    if user is None or not user.twofa_enabled:
+        session.pop('pending_2fa', None)
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        code = (request.form.get('code') or '').strip().replace(' ', '').replace('-', '')
+        if _verify_twofa(user, code):
+            session.pop('pending_2fa', None)
+            session['sv'] = user.session_version or 0
+            login_user(user, remember=True)
+            audit('login.2fa_success', user=user)
+            flash('Signed in.', 'success')
+            return redirect(url_for('dashboard'))
+        audit('login.2fa_failure', user=user)
+        flash('That code was not accepted.', 'error')
+    return render_template('twofa_challenge.html')
+
+
+def _verify_twofa(user, code):
+    """Accept a live TOTP code, or a single-use recovery code."""
+    try:
+        secret = _decrypt_with_server(user.twofa_secret, user.twofa_salt)
+    except Exception:
+        return False
+    if code and pyotp.TOTP(secret).verify(code, valid_window=1):
+        return True
+    # recovery codes
+    remaining = []
+    matched = False
+    for stored_hash in json.loads(user.recovery_codes or '[]'):
+        if not matched and code and check_password_hash(stored_hash, code):
+            matched = True
+            continue  # consume it
+        remaining.append(stored_hash)
+    if matched:
+        user.recovery_codes = json.dumps(remaining)
+        db.session.commit()
+    return matched
+
+
+def _issue_recovery_codes(n=8):
+    # No separators: the challenge strips spaces and hyphens before verifying,
+    # so a hyphenated code could never match its stored hash.
+    codes = [secrets.token_hex(10) for _ in range(n)]
+    hashed = [generate_password_hash(c) for c in codes]
+    return codes, json.dumps(hashed)
+
+
+@app.route('/twofa/setup', methods=['GET', 'POST'])
+@login_required
+def twofa_setup():
+    user = db.session.get(User, current_user.id)
+    if request.method == 'POST':
+        stage = request.form.get('stage')
+        if stage == 'confirm':
+            code = (request.form.get('code') or '').strip().replace(' ', '')
+            pending = session.get('twofa_pending')
+            if not pending:
+                flash('Start again from the setup link.', 'error')
+                return redirect(url_for('security'))
+            if not pyotp.TOTP(pending).verify(code, valid_window=1):
+                flash('That code did not match. Check your authenticator and retry.', 'error')
+                return redirect(url_for('twofa_setup'))
+            codes, hashed = _issue_recovery_codes()
+            user.twofa_secret, user.twofa_salt = _encrypt_with_server(pending)
+            user.twofa_enabled = True
+            user.recovery_codes = hashed
+            db.session.commit()
+            session.pop('twofa_pending', None)
+            audit('2fa.enabled', user=user)
+            flash('Two-factor sign-in is on.', 'success')
+            return render_template('twofa_recovery.html', codes=codes)
+        # stage == 'start': re-authenticate before issuing a new seed
+        if not check_password_hash(user.password, request.form.get('password') or ''):
+            flash('Password incorrect.', 'error')
+            return redirect(url_for('twofa_setup'))
+        secret = pyotp.random_base32()
+        session['twofa_pending'] = secret
+        return render_template('twofa_setup.html', secret=secret,
+                               uri=pyotp.TOTP(secret).provisioning_uri(
+                                   name=user.username, issuer_name='SafeX'))
+    # The "enter your password to begin" form lives on /security; coming here
+    # with a GET just sends the user back to it rather than looping.
+    return redirect(url_for('security'))
+
+
+@app.route('/twofa/disable', methods=['POST'])
+@login_required
+def twofa_disable():
+    user = db.session.get(User, current_user.id)
+    if not check_password_hash(user.password, request.form.get('password') or ''):
+        flash('Password incorrect.', 'error')
+        return redirect(url_for('security'))
+    if not _verify_twofa(user, (request.form.get('code') or '').strip()):
+        flash('A valid code is required to turn this off.', 'error')
+        return redirect(url_for('security'))
+    user.twofa_enabled = False
+    user.twofa_secret = None
+    user.twofa_salt = None
+    user.recovery_codes = None
+    db.session.commit()
+    audit('2fa.disabled', user=user)
+    flash('Two-factor sign-in is off.', 'success')
+    return redirect(url_for('security'))
+
+
+@app.route('/twofa/recovery', methods=['POST'])
+@login_required
+def twofa_recovery():
+    user = db.session.get(User, current_user.id)
+    codes, hashed = _issue_recovery_codes()
+    user.recovery_codes = hashed
+    db.session.commit()
+    audit('2fa.recovery_regenerated', user=user)
+    return render_template('twofa_recovery.html', codes=codes)
 
 
 @app.route('/logout')
 @login_required
 def logout():
+    audit('logout', user=current_user)
     logout_user()
     session.clear()
     return redirect(url_for('home'))
@@ -325,7 +523,15 @@ def logout():
 @app.route('/security')
 @login_required
 def security():
-    return render_template('security.html')
+    events = (AuditEvent.query.filter_by(user_id=current_user.id)
+              .order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc()).limit(40).all())
+    unused_recovery = 0
+    if current_user.recovery_codes:
+        try:
+            unused_recovery = len(json.loads(current_user.recovery_codes))
+        except ValueError:
+            unused_recovery = 0
+    return render_template('security.html', events=events, unused_recovery=unused_recovery)
 
 
 @app.route('/signout-everywhere', methods=['POST'])
@@ -334,6 +540,7 @@ def signout_everywhere():
     user = db.session.get(User, current_user.id)
     user.session_version = (user.session_version or 0) + 1
     db.session.commit()
+    audit('signout_everywhere', user=user)
     logout_user()
     session.clear()
     flash('Signed out on every device.', 'success')
@@ -388,6 +595,7 @@ def encrypt():
     try:
         db.session.add(entry)
         db.session.commit()
+        audit('entry.create', detail=label[:80])
         flash('Encrypted and saved.', 'success')
     except SQLAlchemyError:
         db.session.rollback()
@@ -419,8 +627,10 @@ def decrypt_password_by_id(id):
         try:
             plain = _decrypt(request.form['passkey'], password.encrypted_password,
                              password.salt, password.kdf_iterations)
+            audit('entry.decrypt', detail=password.name[:80])
             return render_template('decrypt_result.html', password=password, decrypted=plain)
         except Exception:
+            audit('entry.decrypt_failed', detail=password.name[:80])
             flash('That vault key did not open this entry.', 'error')
             return redirect(url_for('dashboard'))
     return render_template('decrypt_password.html', password=password)
@@ -446,6 +656,7 @@ def update_password(id):
             password.kdf_iterations = iters
             password.updated_at = utcnow()
             db.session.commit()
+            audit('entry.update', detail=label[:80])
             flash('Entry updated.', 'success')
             return redirect(url_for('dashboard'))
         except SQLAlchemyError:
@@ -461,6 +672,7 @@ def delete_password_by_id(id):
     password = _owned_or_404(Password, id)
     password.deleted_at = utcnow()
     db.session.commit()
+    audit('entry.delete', detail=password.name[:80])
     flash('Moved to trash. Recoverable for %d days.' % TRASH_RETENTION_DAYS, 'success')
     return redirect(url_for('dashboard'))
 
@@ -485,6 +697,7 @@ def restore_password(id):
     password = _owned_or_404(Password, id)
     password.deleted_at = None
     db.session.commit()
+    audit('entry.restore', detail=password.name[:80])
     flash('Restored.', 'success')
     return redirect(url_for('trash'))
 
@@ -493,8 +706,10 @@ def restore_password(id):
 @login_required
 def purge_password(id):
     password = _owned_or_404(Password, id)
+    detail = password.name[:80]
     db.session.delete(password)
     db.session.commit()
+    audit('entry.purge', detail=detail)
     flash('Permanently deleted.', 'success')
     return redirect(url_for('trash'))
 
@@ -589,6 +804,7 @@ def totp_reveal(id):
     except Exception:
         flash('That vault key did not open this code.', 'error')
         return redirect(url_for('totp_reveal', id=row.id))
+    audit('totp.reveal', detail=row.label[:80])
     t = pyotp.TOTP(secret)
     now = int(utcnow().timestamp())
     return render_template('totp_code.html', row=row, current=t.now(),
@@ -602,6 +818,7 @@ def totp_delete(id):
     row = _owned_or_404(Totp, id)
     row.deleted_at = utcnow()
     db.session.commit()
+    audit('totp.delete', detail=row.label[:80])
     flash('Moved to trash.', 'success')
     return redirect(url_for('trash'))
 
@@ -667,6 +884,7 @@ def _do_export():
         ],
     }
     body = json.dumps(payload, indent=2)
+    audit('vault.export', detail='%d entries, %d codes' % (len(payload['entries']), len(payload['totp'])))
     stamp = utcnow().strftime('%Y%m%d-%H%M')
     return send_file(io.BytesIO(body.encode()), mimetype='application/json',
                      as_attachment=True, download_name='safex-export-%s.json' % stamp)
@@ -716,6 +934,7 @@ def _do_import():
             continue
     try:
         db.session.commit()
+        audit('vault.import', detail='%d items' % n)
         flash('Imported %d item%s.' % (n, '' if n == 1 else 's'), 'success')
     except SQLAlchemyError:
         db.session.rollback()
