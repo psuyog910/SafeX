@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Trash - SafeX{% endblock %}
+{% block content %}
+<div class="mid">
+  <div class="card">
+    <div class="card-head">
+      <span class="card-icon"><svg width="21" height="21"><use href="#i-trash"/></svg></span>
+      <div>
+        <h2>Trash</h2>
+        <p class="sub">Deleted items are kept for 30 days, then purged automatically.</p>
+      </div>
+    </div>
+
+    <div class="card-body">
+      {% if not passwords and not totps %}
+        <div class="empty">
+          <div class="empty-mark"><svg width="28" height="28"><use href="#i-check-circle"/></svg></div>
+          <h3>Trash is empty</h3>
+          <p>Anything you delete lands here first, so a misclick is never the end of it.</p>
+        </div>
+      {% else %}
+
+        {% if passwords %}
+        <p class="hint" style="margin:0 0 10px">Entries</p>
+        <div class="entries" style="margin-bottom:26px">
+          {% for password in passwords %}
+          <div class="entry">
+            <span class="entry-badge">{{ password.name[0] }}</span>
+            <div class="entry-body">
+              <div class="entry-name">{{ password.name }}</div>
+              <div class="entry-meta">Deleted {{ password.deleted_at.strftime('%d %b %Y, %H:%M') if password.deleted_at else '' }}</div>
+            </div>
+            <div class="entry-acts">
+              <form class="inline" method="POST" action="{{ url_for('restore_password', id=password.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-primary btn-sm" title="Restore">
+                  <svg width="15" height="15"><use href="#i-rotate"/></svg>
+                </button>
+              </form>
+              <form class="inline" method="POST" action="{{ url_for('purge_password', id=password.id) }}" onsubmit="return confirm('Permanently delete {{ password.name }}? This cannot be undone.')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger btn-sm" title="Delete forever">
+                  <svg width="15" height="15"><use href="#i-x"/></svg>
+                </button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if totps %}
+        <p class="hint" style="margin:0 0 10px">Authenticator codes</p>
+        <div class="entries">
+          {% for row in totps %}
+          <div class="entry">
+            <span class="entry-badge">{{ row.label[0] }}</span>
+            <div class="entry-body">
+              <div class="entry-name">{{ row.label }}</div>
+              <div class="entry-meta">Deleted {{ row.deleted_at.strftime('%d %b %Y, %H:%M') if row.deleted_at else '' }}</div>
+            </div>
+            <div class="entry-acts">
+              <form class="inline" method="POST" action="{{ url_for('totp_restore', id=row.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-primary btn-sm" title="Restore">
+                  <svg width="15" height="15"><use href="#i-rotate"/></svg>
+                </button>
+              </form>
+              <form class="inline" method="POST" action="{{ url_for('totp_purge', id=row.id) }}" onsubmit="return confirm('Permanently delete {{ row.label }}?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger btn-sm" title="Delete forever">
+                  <svg width="15" height="15"><use href="#i-x"/></svg>
+                </button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

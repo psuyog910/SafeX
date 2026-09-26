@@ -9,24 +9,41 @@
   </div>
   <div class="count">
     <svg width="16" height="16" style="color:var(--accent)"><use href="#i-key"/></svg>
-    <b>{{ passwords|length }}</b> {{ 'entry' if passwords|length == 1 else 'entries' }}
+    <b>{{ total }}</b> {{ 'entry' if total == 1 else 'entries' }}
   </div>
 </div>
+
+<form class="searchbar" method="GET" action="{{ url_for('dashboard') }}">
+  <svg width="17" height="17"><use href="#i-search"/></svg>
+  <input type="text" name="q" value="{{ q }}" placeholder="Search label, username or URL" aria-label="Search vault" autocomplete="off">
+  {% if q %}<a href="{{ url_for('dashboard') }}" class="search-clear" aria-label="Clear search"><svg width="16" height="16"><use href="#i-x"/></svg></a>{% endif %}
+</form>
 
 <div class="card" style="margin-bottom:26px">
   <div class="card-head">
     <span class="card-icon"><svg width="21" height="21"><use href="#i-plus"/></svg></span>
     <div>
       <h2>Add an entry</h2>
-      <p class="sub">Pick a passkey for this one. You will need it every time you open it.</p>
+      <p class="sub">Pick a vault key for this one. You will need it every time you open it.</p>
     </div>
   </div>
 
   <div class="card-body">
     <form method="POST" action="{{ url_for('encrypt') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="grid-2">
+        <div class="field">
+          <label for="password_name">Label</label>
+          <input type="text" id="password_name" name="password_name" placeholder="Gmail, Net banking, Wi-Fi" required>
+        </div>
+        <div class="field">
+          <label for="entry_username">Username <span class="opt">optional</span></label>
+          <input type="text" id="entry_username" name="entry_username" placeholder="you@example.com" autocomplete="off">
+        </div>
+      </div>
       <div class="field">
-        <label for="password_name">Label</label>
-        <input type="text" id="password_name" name="password_name" placeholder="Gmail, Net banking, Wi-Fi..." required>
+        <label for="entry_url">URL <span class="opt">optional</span></label>
+        <input type="text" id="entry_url" name="entry_url" placeholder="https://example.com" autocomplete="off">
       </div>
       <div class="field">
         <label for="password">Password</label>
@@ -38,18 +55,49 @@
         </div>
       </div>
       <div class="field">
-        <label for="passkey">Passkey for this entry</label>
+        <label for="passkey">Vault key for this entry</label>
         <div class="input-wrap">
           <input type="password" id="passkey" name="passkey" placeholder="Something only you know" autocomplete="off" required>
-          <button type="button" class="toggle-pw" data-toggle-pw="passkey" aria-label="Show passkey">
+          <button type="button" class="toggle-pw" data-toggle-pw="passkey" aria-label="Show vault key">
             <svg width="19" height="19"><use href="#i-eye"/></svg>
           </button>
         </div>
-        <p class="hint">Encrypts this entry with <strong>200,000 PBKDF2 rounds</strong> and a fresh random salt. <strong>Lose it and the entry is gone for good.</strong></p>
+        <p class="hint"><strong>200,000 PBKDF2 rounds</strong> and a fresh random salt per entry. <strong>Lose the key and the entry is gone for good.</strong></p>
+      </div>
+      <div class="field">
+        <label for="entry_notes">Notes <span class="opt">optional</span></label>
+        <input type="text" id="entry_notes" name="entry_notes" placeholder="Recovery email, hint, anything" autocomplete="off">
       </div>
       <button type="submit" class="btn btn-primary btn-block">
         <svg width="18" height="18"><use href="#i-lock"/></svg> Encrypt and save
       </button>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:26px">
+  <div class="card-head">
+    <span class="card-icon cyan"><svg width="21" height="21"><use href="#i-radar"/></svg></span>
+    <div>
+      <h2>Breach check</h2>
+      <p class="sub">Has this password already turned up in a known data breach?</p>
+    </div>
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('breach_check') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field" style="margin-bottom:0">
+        <div class="input-wrap">
+          <input type="password" id="candidate" name="candidate" placeholder="Password to check" autocomplete="off" required>
+          <button type="button" class="toggle-pw" data-toggle-pw="candidate" aria-label="Show password">
+            <svg width="19" height="19"><use href="#i-eye"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-ghost" style="margin-top:12px">
+        <svg width="17" height="17"><use href="#i-radar"/></svg> Check it
+      </button>
+      <p class="hint">Uses k-anonymity: only the first 5 characters of a SHA-1 hash are sent. <strong>Your password is never transmitted and never stored.</strong></p>
     </form>
   </div>
 </div>
@@ -61,33 +109,68 @@
       <span class="entry-badge">{{ password.name[0] }}</span>
       <div class="entry-body">
         <div class="entry-name">{{ password.name }}</div>
-        <div class="entry-meta">Encrypted &middot; salted</div>
+        <div class="entry-meta">
+          {% if password.username %}{{ password.username }}{% if password.url %} &middot; {% endif %}{% endif %}
+          {% if password.url %}<span class="trunc">{{ password.url }}</span>{% endif %}
+          {% if not password.username and not password.url %}Encrypted &middot; salted{% endif %}
+        </div>
       </div>
       <div class="entry-acts">
         <a href="{{ url_for('decrypt_password_by_id', id=password.id) }}" class="btn btn-primary btn-sm" title="Decrypt">
-          <svg width="15" height="15"><use href="#i-unlock"/></svg><span class="sr">Decrypt</span>
+          <svg width="15" height="15"><use href="#i-unlock"/></svg>
         </a>
         <a href="{{ url_for('update_password', id=password.id) }}" class="btn btn-ghost btn-sm" title="Update">
-          <svg width="15" height="15"><use href="#i-edit"/></svg><span class="sr">Update</span>
+          <svg width="15" height="15"><use href="#i-edit"/></svg>
         </a>
-        <form class="inline" method="POST" action="{{ url_for('delete_password_by_id', id=password.id) }}" onsubmit="return confirm('Delete {{ password.name }} permanently? This cannot be undone.')">
-          <button type="submit" class="btn btn-danger btn-sm" title="Delete">
-            <svg width="15" height="15"><use href="#i-trash"/></svg><span class="sr">Delete</span>
+        <form class="inline" method="POST" action="{{ url_for('delete_password_by_id', id=password.id) }}" onsubmit="return confirm('Move {{ password.name }} to trash? You can restore it for {{ 30 }} days.')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger btn-sm" title="Move to trash">
+            <svg width="15" height="15"><use href="#i-trash"/></svg>
           </button>
         </form>
       </div>
     </div>
     {% endfor %}
   </div>
+  {% if q %}<p class="foot-alt">Showing {{ passwords|length }} of {{ total }} matching &ldquo;{{ q }}&rdquo;.</p>{% endif %}
+{% elif q %}
+  <div class="empty">
+    <div class="empty-mark"><svg width="30" height="30"><use href="#i-search"/></svg></div>
+    <h3>Nothing matches &ldquo;{{ q }}&rdquo;</h3>
+    <p>Try a different label, username or URL.</p>
+  </div>
 {% else %}
   <div class="empty">
     <div class="empty-mark"><svg width="30" height="30"><use href="#i-key"/></svg></div>
     <h3>Your vault is empty</h3>
-    <p>Add your first entry using the form above. It gets encrypted with a passkey you choose, right here in your browser session, before it is written to the database.</p>
+    <p>Add your first entry with the form above. It is encrypted with a vault key you choose, using a unique random salt, before it reaches the database.</p>
   </div>
 {% endif %}
 
 <style>
 .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.opt{color:var(--text-faint);font-weight:400}
+.trunc{display:inline-block;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+.grid-2{display:grid;gap:0 18px;grid-template-columns:1fr 1fr}
+.searchbar{
+  position:relative;display:flex;align-items:center;gap:10px;margin-bottom:22px;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r);padding:0 14px;
+  transition:border-color .18s var(--ease),box-shadow .18s var(--ease);
+}
+.searchbar:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.searchbar svg{color:var(--text-faint);flex:none}
+.searchbar input{
+  background:none;border:0;padding:12px 0;width:100%;color:var(--text);font:inherit;font-size:14.5px;
+}
+.searchbar input:focus{outline:none;background:none;box-shadow:none}
+.search-clear{color:var(--text-faint);display:grid;place-items:center;flex:none}
+.search-clear:hover{color:var(--accent)}
+.linkbtn{
+  display:inline-flex;align-items:center;gap:6px;margin-top:9px;
+  background:none;border:0;padding:0;cursor:pointer;font:inherit;font-size:12.5px;font-weight:600;
+  color:var(--cyan);transition:color .18s var(--ease);
+}
+.linkbtn:hover{color:var(--accent);text-decoration:underline}
+@media (max-width:720px){.grid-2{grid-template-columns:1fr}}
 </style>
 {% endblock %}

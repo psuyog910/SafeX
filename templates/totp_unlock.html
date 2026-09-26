@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Decrypt {{ password.name }} - SafeX{% endblock %}
+{% block title %}Unlock {{ row.label }} - SafeX{% endblock %}
 {% block content %}
 <div class="narrow">
   <div class="card">
     <div class="card-head">
-      <span class="card-icon cyan"><svg width="21" height="21"><use href="#i-unlock"/></svg></span>
+      <span class="card-icon cyan"><svg width="21" height="21"><use href="#i-clock"/></svg></span>
       <div>
-        <h2>{{ password.name }}</h2>
-        <p class="sub">Locked. Enter the passkey you saved this under.</p>
+        <h2>{{ row.label }}</h2>
+        <p class="sub">{{ row.account or 'No account set' }}</p>
       </div>
     </div>
 
@@ -18,17 +18,17 @@
           <label for="passkey">Vault key</label>
           <div class="input-wrap">
             <input type="password" id="passkey" name="passkey" autocomplete="off" required autofocus>
-            <button type="button" class="toggle-pw" data-toggle-pw="passkey" aria-label="Show passkey">
+            <button type="button" class="toggle-pw" data-toggle-pw="passkey" aria-label="Show vault key">
               <svg width="19" height="19"><use href="#i-eye"/></svg>
             </button>
           </div>
-          <p class="hint">Three wrong guesses and the browser will ask for the correct passkey. There is no reset &mdash; nobody has it.</p>
+          <p class="hint">The vault key you chose when you added this authenticator.</p>
         </div>
         <div class="btn-row">
           <button type="submit" class="btn btn-primary" style="flex:1">
-            <svg width="18" height="18"><use href="#i-unlock"/></svg> Decrypt
+            <svg width="18" height="18"><use href="#i-unlock"/></svg> Reveal code
           </button>
-          <a href="{{ url_for('dashboard') }}" class="btn btn-outline">
+          <a href="{{ url_for('totp') }}" class="btn btn-outline">
             <svg width="18" height="18"><use href="#i-arrow-left"/></svg> Back
           </a>
         </div>

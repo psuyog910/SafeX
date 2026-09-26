@@ -18,7 +18,7 @@
           <svg width="18" height="18"><use href="#i-copy"/></svg>
         </button>
       </div>
-      <p class="hint">This page is not cached. It will clear the moment you navigate away.</p>
+      <p class="hint">Cleared from your clipboard 30s after you copy it. This page does not cache.</p>
 
       <div class="btn-row">
         <a href="{{ url_for('dashboard') }}" class="btn btn-ghost" style="flex:1">
@@ -37,15 +37,19 @@
   var btn = document.getElementById('copy-btn');
   var text = document.getElementById('password-text');
   if(!btn || !text) return;
+  var timer = null;
   btn.addEventListener('click', function(){
     var val = text.textContent;
     var done = function(){
       btn.classList.add('done');
       btn.innerHTML = '<svg width="18" height="18"><use href="#i-check"/></svg>';
-      setTimeout(function(){
+      if(timer) clearTimeout(timer);
+      timer = setTimeout(function(){
+        clearClipboard(val);
         btn.classList.remove('done');
         btn.innerHTML = '<svg width="18" height="18"><use href="#i-copy"/></svg>';
-      }, 1800);
+        btn.setAttribute('title','Clipboard cleared');
+      }, 30000);
     };
     if(navigator.clipboard && window.isSecureContext){
       navigator.clipboard.writeText(val).then(done, function(){ fallback(val, done); });
@@ -53,6 +57,14 @@
       fallback(val, done);
     }
   });
+  function clearClipboard(val){
+    // only wipe the clipboard if it still holds what we put there
+    if(navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.readText().then(function(now){
+        if(now === val){ navigator.clipboard.writeText(''); }
+      }, function(){});
+    }
+  }
   function fallback(val, cb){
     var ta = document.createElement('textarea');
     ta.value = val;

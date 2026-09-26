@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Security - SafeX{% endblock %}
+{% block content %}
+<div class="mid">
+  <div class="card" style="margin-bottom:24px">
+    <div class="card-head">
+      <span class="card-icon"><svg width="21" height="21"><use href="#i-devices"/></svg></span>
+      <div>
+        <h2>Sessions</h2>
+        <p class="sub">Signed in as {{ current_user.username }}.</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <p class="prose" style="margin-bottom:18px">Signing out everywhere invalidates every active session immediately, including this one. Use it if you think a device you no longer control is still signed in.</p>
+      <form method="POST" action="{{ url_for('signout_everywhere') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-danger" onclick="return confirm('Sign out on every device, including this one?')">
+          <svg width="18" height="18"><use href="#i-logout"/></svg> Sign out everywhere
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span class="card-icon"><svg width="21" height="21"><use href="#i-shield"/></svg></span>
+      <div>
+        <h2>What protects this vault</h2>
+        <p class="sub">The current security posture.</p>
+      </div>
+    </div>
+    <div class="card-body prose">
+      <div class="feature">
+        <span class="feature-ic"><svg width="19" height="19"><use href="#i-check"/></svg></span>
+        <div>
+          <h3>Vault keys stretched hard</h3>
+          <p>PBKDF2-HMAC-SHA256 at 200,000 iterations with a unique 32-byte random salt per item. Changing a password or updating an entry rotates the salt, so old ciphertext keys are worthless.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <span class="feature-ic"><svg width="19" height="19"><use href="#i-check"/></svg></span>
+        <div>
+          <h3>Account passwords hashed</h3>
+          <p>Your login is stored as a salted, iterated hash and is never recoverable. Login failures return one identical message, so nobody can probe for valid usernames.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <span class="feature-ic"><svg width="19" height="19"><use href="#i-check"/></svg></span>
+        <div>
+          <h3>Requests verified and throttled</h3>
+          <p>Every state-changing form carries a CSRF token, and sign-in, sign-up and breach lookups are rate limited per address. Responses carry HSTS, CSP, frame and content-type protections.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <span class="feature-ic"><svg width="19" height="19"><use href="#i-check"/></svg></span>
+        <div>
+          <h3>Ownership enforced server-side</h3>
+          <p>Reads, updates, deletes and reveals all confirm the item belongs to the signed-in account before touching the row, and the clipboard clears itself 30 seconds after a copy.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <span class="feature-ic"><svg width="19" height="19"><use href="#i-alert"/></svg></span>
+        <div>
+          <h3>What it still cannot do</h3>
+          <p>Recover a lost vault key, or read your plaintext. There is no reset by design. A vault key that is lost is a vault entry that is gone.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

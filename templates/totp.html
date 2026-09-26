@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Two-factor codes - SafeX{% endblock %}
+{% block content %}
+<div class="mid">
+  <div class="card" style="margin-bottom:24px">
+    <div class="card-head">
+      <span class="card-icon"><svg width="21" height="21"><use href="#i-clock"/></svg></span>
+      <div>
+        <h2>Authenticator codes</h2>
+        <p class="sub">Generate TOTP codes without reaching for your phone.</p>
+      </div>
+    </div>
+
+    <div class="card-body">
+      {% if totps %}
+        <div class="entries" style="margin-bottom:24px">
+          {% for row in totps %}
+          <div class="entry">
+            <span class="entry-badge">{{ row.label[0] }}</span>
+            <div class="entry-body">
+              <div class="entry-name">{{ row.label }}</div>
+              <div class="entry-meta">{{ row.account or 'No account set' }}</div>
+            </div>
+            <div class="entry-acts">
+              <a href="{{ url_for('totp_reveal', id=row.id) }}" class="btn btn-primary btn-sm" title="Reveal code">
+                <svg width="15" height="15"><use href="#i-eye"/></svg>
+              </a>
+              <form class="inline" method="POST" action="{{ url_for('totp_delete', id=row.id) }}" onsubmit="return confirm('Move {{ row.label }} to trash?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger btn-sm" title="Move to trash">
+                  <svg width="15" height="15"><use href="#i-trash"/></svg>
+                </button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty" style="margin-bottom:24px">
+          <div class="empty-mark"><svg width="28" height="28"><use href="#i-clock"/></svg></div>
+          <h3>No codes yet</h3>
+          <p>Add one below, then scan the setup key with Google Authenticator, Authy or 1Password.</p>
+        </div>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('totp') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="grid-2">
+          <div class="field">
+            <label for="label">Label</label>
+            <input type="text" id="label" name="label" placeholder="GitHub, Google, bank" required>
+          </div>
+          <div class="field">
+            <label for="account">Account <span class="opt">optional</span></label>
+            <input type="text" id="account" name="account" placeholder="you@example.com" autocomplete="off">
+          </div>
+        </div>
+        <div class="field">
+          <label for="passkey">Vault key to encrypt the secret with</label>
+          <div class="input-wrap">
+            <input type="password" id="passkey" name="passkey" placeholder="A key you already use" autocomplete="off" required>
+            <button type="button" class="toggle-pw" data-toggle-pw="passkey" aria-label="Show vault key">
+              <svg width="19" height="19"><use href="#i-eye"/></svg>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">
+          <svg width="18" height="18"><use href="#i-plus"/></svg> Add authenticator
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body prose" style="margin-top:0">
+      <div class="feature">
+        <span class="feature-ic"><svg width="19" height="19"><use href="#i-shield"/></svg></span>
+        <div>
+          <h3>The seed is encrypted, not stored</h3>
+          <p>Like your passwords, each TOTP seed is sealed with your vault key and a unique salt. Revealing a code means decrypting it server-side, in memory, for that one request. The plaintext seed is never written to disk or logged.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.opt{color:var(--text-faint);font-weight:400}
+.grid-2{display:grid;gap:0 18px;grid-template-columns:1fr 1fr}
+@media (max-width:720px){.grid-2{grid-template-columns:1fr}}
+</style>
+{% endblock %}
