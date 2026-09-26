@@ -1,35 +1,53 @@
 {% extends "base.html" %}
+{% block title %}Create account - SafeX{% endblock %}
 {% block content %}
-<div class="auth-container">
-    <div class="section auth-form">
-        <div class="section-header">
-            <i class="fas fa-user-plus"></i>
-            <h2>Create an Account</h2>
-        </div>
-        <p class="section-intro">Sign up to start managing your passwords securely.</p>
-        
-        <form method="POST">
-            <div class="form-group">
-                <label for="username">Username:</label>
-                <input type="text" id="username" name="username" placeholder="Choose a username" required>
-            </div>
-            <div class="form-group">
-                <label for="password">Password:</label>
-                <input type="password" id="password" name="password" placeholder="Create a strong password" required>
-                <small class="form-text">Password must be at least 8 characters long, contain a number, a letter, and a special character.</small>
-            </div>
-            <div class="form-group">
-                <label for="confirm_password">Confirm Password:</label>
-                <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm your password" required>
-            </div>
-            <button type="submit" class="btn btn-green btn-full">
-                <i class="fas fa-user-plus"></i> Sign Up
-            </button>
-        </form>
-        
-        <div class="auth-links">
-            <p>Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
-        </div>
+<div class="narrow">
+  <div class="card">
+    <div class="card-head">
+      <span class="card-icon"><svg width="21" height="21"><use href="#i-plus"/></svg></span>
+      <div>
+        <h2>Create your account</h2>
+        <p class="sub">Takes about fifteen seconds.</p>
+      </div>
     </div>
+
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('signup') }}">
+        <div class="field">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" placeholder="suyog" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+        </div>
+
+        <div class="field">
+          <label for="new-password">Password</label>
+          <div class="input-wrap">
+            <input type="password" id="new-password" name="password" placeholder="Create a strong password" autocomplete="new-password" required>
+            <button type="button" class="toggle-pw" data-toggle-pw="new-password" aria-label="Show password">
+              <svg width="19" height="19"><use href="#i-eye"/></svg>
+            </button>
+          </div>
+          <div class="meter" id="meter" data-level="0"><i></i><i></i><i></i><i></i></div>
+          <p class="meter-label" id="meter-label"></p>
+          <p class="hint">Needs at least <strong>8 characters</strong> with a letter, a number and a special character.</p>
+        </div>
+
+        <div class="field">
+          <label for="confirm_password">Confirm password</label>
+          <div class="input-wrap">
+            <input type="password" id="confirm_password" name="confirm_password" placeholder="Type it once more" autocomplete="new-password" required>
+            <button type="button" class="toggle-pw" data-toggle-pw="confirm_password" aria-label="Show password">
+              <svg width="19" height="19"><use href="#i-eye"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">
+          <svg width="18" height="18"><use href="#i-shield"/></svg> Create account
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <p class="foot-alt">Already registered? <a href="{{ url_for('login') }}">Sign in</a></p>
 </div>
 {% endblock %}

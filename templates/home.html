@@ -1,23 +1,52 @@
 {% extends "base.html" %}
+{% block title %}SafeX - Passwords encrypted with your own passkey{% endblock %}
 {% block content %}
-<div class="hero-section">
-    <div class="hero-icon">
-        <i class="fas fa-shield-alt"></i>
+<section class="hero">
+  <div class="hero-mark"><svg width="40" height="40"><use href="#i-shield"/></svg></div>
+  <h1>Your passwords.<br>Locked with <em>your</em> key.</h1>
+  <p>SafeX encrypts every password with a passkey only you know, using PBKDF2 with a unique random salt. We never see it, we never store it, we cannot recover it.</p>
+
+  <div class="cta">
+    <a href="{{ url_for('signup') }}" class="btn btn-primary">
+      <svg width="18" height="18"><use href="#i-plus"/></svg> Create your vault
+    </a>
+    <a href="{{ url_for('login') }}" class="btn btn-ghost">
+      <svg width="18" height="18"><use href="#i-user"/></svg> Sign in
+    </a>
+  </div>
+
+  <div class="pill-row">
+    <span class="pill"><svg width="15" height="15"><use href="#i-lock"/></svg> 200,000 PBKDF2 rounds</span>
+    <span class="pill"><svg width="15" height="15"><use href="#i-key"/></svg> Unique salt per entry</span>
+    <span class="pill"><svg width="15" height="15"><use href="#i-infinity"/></svg> No passkey recovery</span>
+  </div>
+</section>
+
+<div class="mid" style="margin-top:56px">
+  <div class="card">
+    <div class="feature">
+      <span class="feature-ic"><svg width="19" height="19"><use href="#i-key"/></svg></span>
+      <div>
+        <h3>Your passkey is the whole security model</h3>
+        <p>Every entry is encrypted client-side-style with a key derived from your passkey and its own random salt. A leaked database dump gives an attacker ciphertext and nothing else.</p>
+      </div>
     </div>
-    <h1 class="app-title">SafeX</h1>
-    <p class="tagline">Where X Stands for Xtra Safe</p>
-    
-    <div class="cta-buttons">
-        <a href="{{ url_for('login') }}" class="btn btn-blue">
-            <i class="fas fa-sign-in-alt"></i> Sign In
-        </a>
-        <a href="{{ url_for('signup') }}" class="btn btn-green">
-            <i class="fas fa-user-plus"></i> Sign Up
-        </a>
+    <div class="feature">
+      <span class="feature-ic"><svg width="19" height="19"><use href="#i-shield"/></svg></span>
+      <div>
+        <h3>Your account password is hashed, not stored</h3>
+        <p>Login credentials go through a salted, iterated hash. Nobody, including the server operator, can read your account password back out of the database.</p>
+      </div>
     </div>
-    
-    <div class="home-footer">
-        <a href="{{ url_for('about') }}">Learn more about SafeX</a>
+    <div class="feature">
+      <span class="feature-ic"><svg width="19" height="19"><use href="#i-globe"/></svg></span>
+      <div>
+        <h3>Entries are scoped to your account</h3>
+        <p>Every read, update and delete checks ownership on the server. One account can never reach another's vault, even by guessing an entry id.</p>
+      </div>
     </div>
+  </div>
+
+  <p class="foot-alt">Want the details? <a href="{{ url_for('about') }}">Read how SafeX works &rarr;</a></p>
 </div>
 {% endblock %}

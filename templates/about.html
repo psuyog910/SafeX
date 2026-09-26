@@ -1,73 +1,64 @@
 {% extends "base.html" %}
+{% block title %}How SafeX works{% endblock %}
 {% block content %}
-<div class="section">
-    <div class="section-header">
-        <i class="fas fa-info-circle"></i>
-        <h2>About Password Manager</h2>
+<div class="mid">
+  <div class="card">
+    <div class="card-head">
+      <span class="card-icon"><svg width="21" height="21"><use href="#i-shield"/></svg></span>
+      <div>
+        <h2>How SafeX works</h2>
+        <p class="sub">The whole design in one page.</p>
+      </div>
     </div>
-    <p class="section-intro">Password Manager is a secure application designed to help you store and manage your passwords safely.</p>
-    
-    <div class="about-section">
-        <h3><i class="fas fa-cogs"></i> How it works</h3>
-        <p>Password Manager uses strong encryption to protect your passwords. We do not store your passkey, we just store your encrypted passwords.</p>
-        <ul>
-            <li>Your passwords are encrypted with your personal passkey</li>
-            <li>Only you can access them with your account credentials</li>
-        </ul>
-    </div>
-    
-    <div class="about-section">
-        <h3><i class="fas fa-shield-alt"></i> Security Features</h3>
-        <ul>
-            <li>Strong password hashing</li>
-            <li>Symmetric encryption for stored passwords</li>
-            <li>Protection against unauthorized access</li>
-        </ul>
-    </div>
-    
-    <div class="about-section">
-        <h3><i class="fas fa-lightbulb"></i> Tips</h3>
-        <ul>
-            <li>Use a strong, unique passkey for each password</li>
-            <li>Remember your passkeys - they cannot be recovered if lost</li>
-        </ul>
-    </div>
-    
-    <div class="button-container">
-        <a href="{{ url_for('home') }}" class="btn btn-blue">
-            <i class="fas fa-arrow-left"></i> Back to Home
-        </a>
-    </div>
-</div>
 
-<style>
-    .about-section {
-        margin-bottom: 25px;
-        padding-bottom: 15px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .about-section:last-child {
-        border-bottom: none;
-    }
-    
-    .about-section h3 {
-        display: flex;
-        align-items: center;
-        color: var(--secondary-color);
-        margin-bottom: 15px;
-    }
-    
-    .about-section h3 i {
-        margin-right: 10px;
-    }
-    
-    .about-section ul {
-        padding-left: 20px;
-    }
-    
-    .about-section li {
-        margin-bottom: 8px;
-    }
-</style>
+    <div class="card-body prose">
+      <div class="feature">
+        <span class="feature-ic"><svg width="19" height="19"><use href="#i-key"/></svg></span>
+        <div>
+          <h3>Encryption keys come from your passkey</h3>
+          <p>When you save an entry, SafeX generates a 32-byte random salt, derives a 256-bit key from your passkey and that salt using <strong>PBKDF2-HMAC-SHA256 with 200,000 iterations</strong>, and encrypts the password with Fernet. Only the ciphertext and the salt are stored. Your passkey is never written anywhere.</p>
+        </div>
+      </div>
+
+      <div class="feature">
+        <span class="feature-ic"><svg width="19" height="19"><use href="#i-user"/></svg></span>
+        <div>
+          <h3>Your login is separate from your passkeys</h3>
+          <p>Account passwords are hashed with a salted, iterated algorithm &mdash; they are never stored in readable form. Account access and vault decryption are two different locks, so a compromised account password alone does not open your entries.</p>
+        </div>
+      </div>
+
+      <div class="feature">
+        <span class="feature-ic"><svg width="19" height="19"><use href="#i-shield"/></svg></span>
+        <div>
+          <h3>Each entry is checked for ownership</h3>
+          <p>Every decrypt, update and delete verifies the entry belongs to the signed-in account before touching the row. Guessing an entry id from another account returns a refusal, not data.</p>
+        </div>
+      </div>
+
+      <div class="feature">
+        <span class="feature-ic"><svg width="19" height="19"><use href="#i-alert"/></svg></span>
+        <div>
+          <h3>What SafeX cannot do</h3>
+          <p>It cannot reset a forgotten passkey, recover a lost password, or read your plaintext. That is the point &mdash; but it means you are responsible for remembering your passkeys. A password manager without a master-key escape hatch by design.</p>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        {% if current_user.is_authenticated %}
+          <a href="{{ url_for('dashboard') }}" class="btn btn-primary" style="flex:1">
+            <svg width="18" height="18"><use href="#i-key"/></svg> Go to your vault
+          </a>
+        {% else %}
+          <a href="{{ url_for('signup') }}" class="btn btn-primary" style="flex:1">
+            <svg width="18" height="18"><use href="#i-plus"/></svg> Create an account
+          </a>
+        {% endif %}
+        <a href="{{ url_for('home') }}" class="btn btn-outline">
+          <svg width="18" height="18"><use href="#i-arrow-left"/></svg> Home
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
