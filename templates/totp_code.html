@@ -37,7 +37,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="{{ nonce }}">
 (function(){
   var btn = document.getElementById('copy-btn');
   var text = document.getElementById('password-text');
@@ -67,7 +67,7 @@
 })();
 </script>
 
-<style>
+<style nonce="{{ nonce }}">
 .setup{margin-top:22px;border-top:1px solid var(--line);padding-top:18px}
 .setup summary{cursor:pointer;font-size:14px;font-weight:600;color:var(--text-dim);list-style:none}
 .setup summary::-webkit-details-marker{display:none}

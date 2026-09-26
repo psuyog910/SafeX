@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file, current_app, abort, g
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
@@ -22,7 +22,6 @@ import sqlalchemy as sa
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-only-change-me')
-
 db_url = os.environ.get('DATABASE_URL', 'sqlite:///users.db')
 # Pin the psycopg2 driver explicitly: SQLAlchemy 2.1+ defaults postgresql://
 # to psycopg v3, which is not installed. psycopg2-binary is in requirements.
@@ -35,8 +34,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', '1') == '1'
 app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
+app.config['REMEMBER_COOKIE_SECURE'] = app.config['SESSION_COOKIE_SECURE']
 # NOTE: do not set WTF_CSRF_CHECK_DEFAULT = False to silence the Referer
 # check - in Flask-WTF that flag disables CSRF protection altogether. The
 # Referer comparison is satisfied by the strict-origin-when-cross-origin
@@ -52,9 +53,13 @@ login_manager.login_view = 'login'
 login_manager.login_message = 'Please sign in to continue.'
 login_manager.login_message_category = 'error'
 
-KDF_ITERATIONS = 200_000
+KDF_ITERATIONS = 600_000
 TRASH_RETENTION_DAYS = 30
 HIBP_URL = 'https://api.pwnedpasswords.com/range/'
+
+# Compared against when the username does not exist, so a missing account costs
+# the same wall-clock time as a wrong password and cannot be detected by timing.
+_DUMMY_HASH = generate_password_hash('timing-equaliser-' + 'x' * 24)
 
 
 def utcnow():
@@ -78,6 +83,9 @@ class Password(db.Model):
     notes = db.Column(db.Text)
     encrypted_password = db.Column(db.String(500), nullable=False)
     salt = db.Column(db.String(64), nullable=False, default='')
+    # PBKDF2 rounds this entry was sealed with. Defaults to the old 200k so rows
+    # written before the upgrade still open; new entries use KDF_ITERATIONS.
+    kdf_iterations = db.Column(db.Integer, nullable=False, default=200_000)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     created_at = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime)
@@ -90,6 +98,7 @@ class Totp(db.Model):
     account = db.Column(db.String(200))
     encrypted_secret = db.Column(db.String(500), nullable=False)
     salt = db.Column(db.String(64), nullable=False, default='')
+    kdf_iterations = db.Column(db.Integer, nullable=False, default=200_000)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     created_at = db.Column(db.DateTime)
     deleted_at = db.Column(db.DateTime)
@@ -106,19 +115,20 @@ def load_user(user_id):
     return user
 
 
-def _derive_key(passphrase, salt):
-    raw = hashlib.pbkdf2_hmac('sha256', passphrase.encode(), salt, KDF_ITERATIONS, dklen=32)
+def _derive_key(passphrase, salt, iterations=KDF_ITERATIONS):
+    raw = hashlib.pbkdf2_hmac('sha256', passphrase.encode(), salt, iterations, dklen=32)
     return base64.urlsafe_b64encode(raw)
 
 
 def _encrypt(passphrase, plaintext):
     salt = secrets.token_bytes(32)
     token = Fernet(_derive_key(passphrase, salt)).encrypt(plaintext.encode()).decode()
-    return token, salt.hex()
+    return token, salt.hex(), KDF_ITERATIONS
 
 
-def _decrypt(passphrase, token, salt_hex):
-    return Fernet(_derive_key(passphrase, bytes.fromhex(salt_hex))).decrypt(token.encode()).decode()
+def _decrypt(passphrase, token, salt_hex, iterations=KDF_ITERATIONS):
+    key = _derive_key(passphrase, bytes.fromhex(salt_hex), iterations or KDF_ITERATIONS)
+    return Fernet(key).decrypt(token.encode()).decode()
 
 
 def _ensure_columns():
@@ -131,6 +141,10 @@ def _ensure_columns():
             'created_at': sa.DateTime(),
             'updated_at': sa.DateTime(),
             'deleted_at': sa.DateTime(),
+            'kdf_iterations': sa.Integer(),
+        },
+        'totp': {
+            'kdf_iterations': sa.Integer(),
         },
         'user': {
             'session_version': sa.Integer(),
@@ -153,10 +167,13 @@ def _ensure_columns():
                 except SQLAlchemyError:
                     app.logger.warning('could not add %s.%s' % (table, col))
         # backfill so pre-existing rows get a real value, not NULL
-        try:
-            conn.execute(sa.text('UPDATE "user" SET session_version = 0 WHERE session_version IS NULL'))
-        except SQLAlchemyError:
-            pass
+        for stmt in ('UPDATE "user" SET session_version = 0 WHERE session_version IS NULL',
+                     'UPDATE password SET kdf_iterations = 200000 WHERE kdf_iterations IS NULL',
+                     'UPDATE totp SET kdf_iterations = 200000 WHERE kdf_iterations IS NULL'):
+            try:
+                conn.execute(sa.text(stmt))
+            except SQLAlchemyError:
+                pass
         conn.commit()
 
 
@@ -174,20 +191,48 @@ def purge_expired_trash():
         db.session.rollback()
 
 
+def _make_nonce():
+    # One nonce per request: the value baked into the templates must be the
+    # same one advertised in the Content-Security-Policy header, or the browser
+    # will block our own scripts.
+    n = getattr(g, '_csp_nonce', None)
+    if n is None:
+        n = secrets.token_urlsafe(16)
+        g._csp_nonce = n
+    return n
+
+
+@app.context_processor
+def inject_nonce():
+    # templates stamp every <style> and <script> with this
+    return {'nonce': _make_nonce()}
+
+
 @app.after_request
 def security_headers(resp):
+    nonce = _make_nonce()
     resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
     resp.headers.setdefault('X-Frame-Options', 'DENY')
     # strict-origin-when-cross-origin (not no-referrer) so same-origin form
-    # submissions still carry a Referer, as several CSRF implementations expect
+    # submissions still carry a Referer, as Flask-WTF's CSRF check requires
     resp.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
     resp.headers.setdefault('Permissions-Policy', 'geolocation=(), microphone=(), camera=()')
     resp.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+    # script-src is strict: only our own nonce-tagged blocks may run, so an
+    # injected <script> or inline handler cannot execute. style-src keeps
+    # 'unsafe-inline' only because templates still carry style="" attributes,
+    # which nonces cannot cover; CSS injection cannot execute script.
     resp.headers.setdefault(
         'Content-Security-Policy',
         "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
-        "script-src 'self' 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'"
+        "script-src 'self' 'nonce-%s'; form-action 'self'; frame-ancestors 'none'; "
+        "base-uri 'self'; object-src 'none'" % nonce
     )
+    # Anything session-bearing must never be stored by a shared cache.
+    if current_user.is_authenticated:
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private, max-age=0'
+        resp.headers['Pragma'] = 'no-cache'
+        resp.headers['Vary'] = 'Cookie'
     return resp
 
 
@@ -253,7 +298,11 @@ def login():
         username = (request.form['username'] or '').strip()
         password = request.form['password']
         user = User.query.filter_by(username=username).first()
-        if user and check_password_hash(user.password, password):
+        # Always run a verification, even when no such user exists, so response
+        # time does not reveal which usernames are registered.
+        stored = user.password if user else _DUMMY_HASH
+        password_ok = check_password_hash(stored, password)
+        if user and password_ok:
             session.clear()
             session['sv'] = user.session_version or 0
             login_user(user, remember=True)
@@ -323,7 +372,7 @@ def encrypt():
         flash('A vault key is required.', 'error')
         return redirect(url_for('dashboard'))
 
-    token, salt = _encrypt(vault_key, request.form['password'])
+    token, salt, iters = _encrypt(vault_key, request.form['password'])
     entry = Password(
         name=label,
         username=(request.form.get('entry_username') or '').strip() or None,
@@ -331,6 +380,7 @@ def encrypt():
         notes=(request.form.get('entry_notes') or '').strip() or None,
         encrypted_password=token,
         salt=salt,
+        kdf_iterations=iters,
         user_id=current_user.id,
         created_at=utcnow(),
         updated_at=utcnow(),
@@ -346,10 +396,14 @@ def encrypt():
 
 
 def _owned_or_404(model, entry_id):
-    row = model.query.get_or_404(entry_id)
-    if row.user_id != current_user.id:
-        flash('That item is not in your vault.', 'error')
-        return None
+    """Return the row only if it exists AND belongs to the caller.
+
+    A row that exists but belongs to someone else produces exactly the same
+    404 as a row that does not exist, so entry ids cannot be enumerated.
+    """
+    row = db.session.get(model, entry_id)
+    if row is None or row.user_id != current_user.id:
+        abort(404)
     return row
 
 
@@ -357,15 +411,14 @@ def _owned_or_404(model, entry_id):
 @login_required
 def decrypt_password_by_id(id):
     password = _owned_or_404(Password, id)
-    if password is None:
-        return redirect(url_for('dashboard'))
     if password.deleted_at is not None:
         flash('That entry is in the trash. Restore it first.', 'error')
         return redirect(url_for('trash'))
 
     if request.method == 'POST':
         try:
-            plain = _decrypt(request.form['passkey'], password.encrypted_password, password.salt)
+            plain = _decrypt(request.form['passkey'], password.encrypted_password,
+                             password.salt, password.kdf_iterations)
             return render_template('decrypt_result.html', password=password, decrypted=plain)
         except Exception:
             flash('That vault key did not open this entry.', 'error')
@@ -377,21 +430,20 @@ def decrypt_password_by_id(id):
 @login_required
 def update_password(id):
     password = _owned_or_404(Password, id)
-    if password is None:
-        return redirect(url_for('dashboard'))
     if request.method == 'POST':
         label = (request.form['password_name'] or '').strip()
         if not label:
             flash('A label is required.', 'error')
             return redirect(url_for('update_password', id=id))
         try:
-            token, salt = _encrypt(request.form['passkey'], request.form['password'])
+            token, salt, iters = _encrypt(request.form['passkey'], request.form['password'])
             password.name = label
             password.username = (request.form.get('entry_username') or '').strip() or None
             password.url = (request.form.get('entry_url') or '').strip() or None
             password.notes = (request.form.get('entry_notes') or '').strip() or None
             password.encrypted_password = token
             password.salt = salt
+            password.kdf_iterations = iters
             password.updated_at = utcnow()
             db.session.commit()
             flash('Entry updated.', 'success')
@@ -407,8 +459,6 @@ def update_password(id):
 @login_required
 def delete_password_by_id(id):
     password = _owned_or_404(Password, id)
-    if password is None:
-        return redirect(url_for('dashboard'))
     password.deleted_at = utcnow()
     db.session.commit()
     flash('Moved to trash. Recoverable for %d days.' % TRASH_RETENTION_DAYS, 'success')
@@ -433,8 +483,6 @@ def trash():
 @login_required
 def restore_password(id):
     password = _owned_or_404(Password, id)
-    if password is None:
-        return redirect(url_for('trash'))
     password.deleted_at = None
     db.session.commit()
     flash('Restored.', 'success')
@@ -445,8 +493,6 @@ def restore_password(id):
 @login_required
 def purge_password(id):
     password = _owned_or_404(Password, id)
-    if password is None:
-        return redirect(url_for('trash'))
     db.session.delete(password)
     db.session.commit()
     flash('Permanently deleted.', 'success')
@@ -516,9 +562,9 @@ def totp():
             flash('Give the code a label.', 'error')
             return redirect(url_for('totp'))
         secret = pyotp.random_base32()
-        token, salt = _encrypt(request.form['passkey'], secret)
+        token, salt, iters = _encrypt(request.form['passkey'], secret)
         db.session.add(Totp(label=label, account=account or None,
-                            encrypted_secret=token, salt=salt,
+                            encrypted_secret=token, salt=salt, kdf_iterations=iters,
                             user_id=current_user.id, created_at=utcnow()))
         db.session.commit()
         flash('Added. Scan the setup key in your authenticator app.', 'success')
@@ -532,15 +578,14 @@ def totp():
 @login_required
 def totp_reveal(id):
     row = _owned_or_404(Totp, id)
-    if row is None:
-        return redirect(url_for('totp'))
     if row.deleted_at is not None:
         flash('That code is in the trash. Restore it first.', 'error')
         return redirect(url_for('trash'))
     if request.method == 'GET':
         return render_template('totp_unlock.html', row=row)
     try:
-        secret = _decrypt(request.form['passkey'], row.encrypted_secret, row.salt)
+        secret = _decrypt(request.form['passkey'], row.encrypted_secret, row.salt,
+                          row.kdf_iterations)
     except Exception:
         flash('That vault key did not open this code.', 'error')
         return redirect(url_for('totp_reveal', id=row.id))
@@ -555,8 +600,6 @@ def totp_reveal(id):
 @login_required
 def totp_delete(id):
     row = _owned_or_404(Totp, id)
-    if row is None:
-        return redirect(url_for('totp'))
     row.deleted_at = utcnow()
     db.session.commit()
     flash('Moved to trash.', 'success')
@@ -567,8 +610,6 @@ def totp_delete(id):
 @login_required
 def totp_restore(id):
     row = _owned_or_404(Totp, id)
-    if row is None:
-        return redirect(url_for('trash'))
     row.deleted_at = None
     db.session.commit()
     flash('Restored.', 'success')
@@ -579,8 +620,6 @@ def totp_restore(id):
 @login_required
 def totp_purge(id):
     row = _owned_or_404(Totp, id)
-    if row is None:
-        return redirect(url_for('trash'))
     db.session.delete(row)
     db.session.commit()
     flash('Permanently deleted.', 'success')
@@ -613,6 +652,7 @@ def _do_export():
             {
                 'name': p.name, 'username': p.username, 'url': p.url, 'notes': p.notes,
                 'ciphertext': p.encrypted_password, 'salt': p.salt,
+                'kdf_iterations': p.kdf_iterations,
                 'created_at': p.created_at.isoformat() if p.created_at else None,
             }
             for p in Password.query.filter_by(user_id=current_user.id).all()
@@ -621,6 +661,7 @@ def _do_export():
             {
                 'label': t.label, 'account': t.account,
                 'ciphertext': t.encrypted_secret, 'salt': t.salt,
+                'kdf_iterations': t.kdf_iterations,
             }
             for t in Totp.query.filter_by(user_id=current_user.id).all()
         ],
@@ -655,6 +696,7 @@ def _do_import():
             db.session.add(Password(
                 name=name[:100], username=row.get('username'), url=row.get('url'),
                 notes=row.get('notes'), encrypted_password=cipher, salt=salt,
+                kdf_iterations=int(row.get('kdf_iterations') or 200_000),
                 user_id=current_user.id, created_at=utcnow(), updated_at=utcnow()))
             n += 1
         except Exception:
@@ -667,6 +709,7 @@ def _do_import():
                 continue
             db.session.add(Totp(label=label[:100], account=row.get('account'),
                                 encrypted_secret=cipher, salt=salt,
+                                kdf_iterations=int(row.get('kdf_iterations') or 200_000),
                                 user_id=current_user.id, created_at=utcnow()))
             n += 1
         except Exception:

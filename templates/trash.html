@@ -37,7 +37,7 @@
                   <svg width="15" height="15"><use href="#i-rotate"/></svg>
                 </button>
               </form>
-              <form class="inline" method="POST" action="{{ url_for('purge_password', id=password.id) }}" onsubmit="return confirm('Permanently delete {{ password.name }}? This cannot be undone.')">
+              <form class="inline" method="POST" action="{{ url_for('purge_password', id=password.id) }}" data-confirm="Permanently delete {{ password.name }}? This cannot be undone.">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-danger btn-sm" title="Delete forever">
                   <svg width="15" height="15"><use href="#i-x"/></svg>
@@ -66,7 +66,7 @@
                   <svg width="15" height="15"><use href="#i-rotate"/></svg>
                 </button>
               </form>
-              <form class="inline" method="POST" action="{{ url_for('totp_purge', id=row.id) }}" onsubmit="return confirm('Permanently delete {{ row.label }}?')">
+              <form class="inline" method="POST" action="{{ url_for('totp_purge', id=row.id) }}" data-confirm="Permanently delete {{ row.label }}?">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-danger btn-sm" title="Delete forever">
                   <svg width="15" height="15"><use href="#i-x"/></svg>

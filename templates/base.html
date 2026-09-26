@@ -8,7 +8,7 @@
 <meta name="color-scheme" content="dark">
 <title>{% block title %}SafeX{% endblock %}</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%2334d399' d='M12 1.5 3.5 5v6.2c0 5.2 3.6 9.9 8.5 11.3 4.9-1.4 8.5-6.1 8.5-11.3V5L12 1.5Z'/><circle cx='12' cy='11' r='2.6' fill='%230a0c11'/><rect x='11' y='11' width='2' height='5' rx='1' fill='%230a0c11'/></svg>">
-<style>
+<style nonce="{{ nonce }}">
 /* ============================================================
    SafeX design system
    ============================================================ */
@@ -442,8 +442,16 @@ form.inline{display:inline;margin:0}
   SafeX &middot; your passwords, encrypted with your own passkey, before they ever reach the database.
 </footer>
 
-<script>
+<script nonce="{{ nonce }}">
 (function(){
+  // Delegated confirm: a strict script-src blocks inline onsubmit/onclick, so
+  // confirmation is driven from data-confirm instead.
+  document.addEventListener('submit', function(e){
+    var el = e.target.closest('[data-confirm]');
+    if (!el) return;
+    if (!window.confirm(el.getAttribute('data-confirm'))) { e.preventDefault(); }
+  });
+
   document.addEventListener('click', function(e){
     var t = e.target.closest('[data-toggle-pw]');
     if(!t) return;

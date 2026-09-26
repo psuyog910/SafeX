@@ -14,7 +14,7 @@
       <p class="prose" style="margin-bottom:18px">Signing out everywhere invalidates every active session immediately, including this one. Use it if you think a device you no longer control is still signed in.</p>
       <form method="POST" action="{{ url_for('signout_everywhere') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn-danger" onclick="return confirm('Sign out on every device, including this one?')">
+        <button type="submit" class="btn btn-danger" data-confirm="Sign out on every device, including this one?">
           <svg width="18" height="18"><use href="#i-logout"/></svg> Sign out everywhere
         </button>
       </form>

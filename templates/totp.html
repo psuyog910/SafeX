@@ -25,7 +25,7 @@
               <a href="{{ url_for('totp_reveal', id=row.id) }}" class="btn btn-primary btn-sm" title="Reveal code">
                 <svg width="15" height="15"><use href="#i-eye"/></svg>
               </a>
-              <form class="inline" method="POST" action="{{ url_for('totp_delete', id=row.id) }}" onsubmit="return confirm('Move {{ row.label }} to trash?')">
+              <form class="inline" method="POST" action="{{ url_for('totp_delete', id=row.id) }}" data-confirm="Move {{ row.label }} to trash?">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-danger btn-sm" title="Move to trash">
                   <svg width="15" height="15"><use href="#i-trash"/></svg>
@@ -84,7 +84,7 @@
   </div>
 </div>
 
-<style>
+<style nonce="{{ nonce }}">
 .opt{color:var(--text-faint);font-weight:400}
 .grid-2{display:grid;gap:0 18px;grid-template-columns:1fr 1fr}
 @media (max-width:720px){.grid-2{grid-template-columns:1fr}}
