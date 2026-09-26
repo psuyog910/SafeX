@@ -210,7 +210,7 @@ def about():
 # --------------------------------------------------------------------------
 
 @app.route('/signup', methods=['GET', 'POST'])
-@limiter.limit('5 per hour')
+@limiter.limit('20 per hour')
 def signup():
     if request.method == 'POST':
         username = (request.form['username'] or '').strip()
