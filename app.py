@@ -12,9 +12,12 @@ import os
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-only-change-me')
 db_url = os.environ.get('DATABASE_URL', 'sqlite:///users.db')
-# Some providers hand out postgres:// URLs; SQLAlchemy 2.x wants postgresql://
+# Pin the psycopg2 driver explicitly: SQLAlchemy 2.1+ defaults postgresql://
+# to psycopg v3, which is not installed. psycopg2-binary is in requirements.
 if db_url.startswith('postgres://'):
-    db_url = db_url.replace('postgres://', 'postgresql://', 1)
+    db_url = db_url.replace('postgres://', 'postgresql+psycopg2://', 1)
+elif db_url.startswith('postgresql://'):
+    db_url = db_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
