@@ -492,7 +492,10 @@ def breach_check():
     else:
         flash('Found in %d known breach%s. Do not use it anywhere.'
               % (count, '' if count == 1 else 'es'), 'error')
-    return redirect(request.referrer or url_for('dashboard'))
+    # Deliberately not request.referrer: the Referer header is attacker
+    # controlled, so redirecting to it is an open redirect. The form lives on
+    # the dashboard, so that is the correct and safe target.
+    return redirect(url_for('dashboard'))
 
 
 # --------------------------------------------------------------------------
