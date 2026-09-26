@@ -37,6 +37,10 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
+# NOTE: do not set WTF_CSRF_CHECK_DEFAULT = False to silence the Referer
+# check - in Flask-WTF that flag disables CSRF protection altogether. The
+# Referer comparison is satisfied by the strict-origin-when-cross-origin
+# Referrer-Policy set in security_headers() below.
 
 db = SQLAlchemy(app)
 csrf = CSRFProtect(app)
@@ -174,7 +178,9 @@ def purge_expired_trash():
 def security_headers(resp):
     resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
     resp.headers.setdefault('X-Frame-Options', 'DENY')
-    resp.headers.setdefault('Referrer-Policy', 'no-referrer')
+    # strict-origin-when-cross-origin (not no-referrer) so same-origin form
+    # submissions still carry a Referer, as several CSRF implementations expect
+    resp.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
     resp.headers.setdefault('Permissions-Policy', 'geolocation=(), microphone=(), camera=()')
     resp.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
     resp.headers.setdefault(
